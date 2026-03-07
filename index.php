@@ -173,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 					</div>
 				</div>
 				
-				<?php if (isAdmin()): ?>
+				<?php if ($settings['comments_enabled'] == '0' && isAdmin())): ?>
 					<div class="comment-section">
 						<p style="text-align:center; color:#666; font-size: 0.8rem;">Comments are currently disabled (& invisible) for non-admin users. <br />
 						As an admin, you can still view historical comments or leave them for yourself.</p>
