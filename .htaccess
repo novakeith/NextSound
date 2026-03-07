@@ -1,0 +1,12 @@
+RewriteEngine On
+RewriteBase /
+
+# Redirect /share/abc to index.php?slug=abc
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^share/([a-zA-Z0-9]+)$ index.php?slug=$1 [L,QSA]
+
+# Redirect /playlist/abc to index.php?playlist=abc
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^playlist/([a-zA-Z0-9]+)$ index.php?playlist=$1 [L,QSA]

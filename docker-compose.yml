@@ -1,0 +1,15 @@
+services:
+  nextsound:
+    build: .
+    container_name: nextsound_app
+    # change this port if you want. Default is 8027.
+    ports:
+      - "8027:80"
+    volumes:
+      - .:/var/www/html
+      - ./data:/var/www/html/data
+      - ./uploads:/var/www/html/uploads
+    # Make sure you open the .env file and update the defaults. Example .env file is at: .env.example
+    env_file:
+      - .env
+    restart: always
