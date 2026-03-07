@@ -6,6 +6,7 @@ echo "---------------"
 echo "This will erase all of your NextSound data and uploads."
 echo "There is no undo! Please proceed with caution."
 echo "---------------"
-sudo rm -ri ./data/*.db 
-find uploads/ -type f ! -name '.htaccess' -print0 | sudo xargs -0 rm -vf
-find uploads/ -type d -empty -print0 | sudo xargs -0 rmdir -v
+sudo rm -ri ./data/*.db
+sudo rm -ri ./uploads/
+sudo mkdir ./uploads/
+sudo cp ./assets/.htaccess-uploads ./uploads/.htaccess
