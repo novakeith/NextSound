@@ -35,8 +35,5 @@ EXPOSE 80
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Use the script as the entrypoint
+# Use the entrypoint script
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-
-# Switch to the non-privileged user for security
-USER www-data

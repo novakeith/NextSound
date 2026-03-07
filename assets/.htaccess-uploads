@@ -1,0 +1,20 @@
+IndexIgnore *
+# /uploads/.htaccess
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php5.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# Fallback: Deny access to any file that ends in .php
+<FilesMatch "\.(php|phtml|php3|php4|php5|phps)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
