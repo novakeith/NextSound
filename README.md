@@ -78,3 +78,23 @@ services:
 
 ## Shutting down the service
 If you want to cleanly reset all the data this service has created but retain the install files to run again in the future, you can run CLEANUP.sh - this will erase everything in the /data/ and /uploads/ folders.
+
+## Screenshots
+
+Tracks can be public or private. Public tracks are listed on the home page.
+![screenshot of the nextsound homepage showing two public tracks](https://novakeith.net/wp-content/uploads/2026/03/Songlist.png)
+
+There is a waveform player with version notes and project notes, and a comment form that automatically time stamps the comment.
+![screenshot of nextsound song page with the waveform viewer and comment form](https://novakeith.net/wp-content/uploads/2026/03/Songpage1.png)
+
+Comments are visible by default but can be toggled off by the admin.
+![screenshot of nextsound comments on a specific song](https://novakeith.net/wp-content/uploads/2026/03/Songpage-2.png)
+
+The admin panel is straightforward:
+![screenshot of the nextsound admin panel showing an HTML form](https://novakeith.net/wp-content/uploads/2026/03/AdminPanel1.png)
+
+Projects listed in the admin panel; you can upload a new version if you wish, that automatically replaces the old version (the old version still remains selectable by listeners)
+![screenshot of the nextsound admin panel showing the project management area](https://novakeith.net/wp-content/uploads/2026/03/AdminPanel2.png)
+
+Global site settings. Rudimentary at this point but hopefully more to come soon.
+![screenshot of the nextsound global site settings page](https://novakeith.net/wp-content/uploads/2026/03/AdminPanel3.png)
