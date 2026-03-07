@@ -26,11 +26,11 @@ I want to at some point add:
 - let users edit/delete their own comments
 - group songs into a playlist (the idea is the admin/musician can create an album that can be linked to so it plays in order for listeners)
 - re-work the UI to be nicer looking
-- - For example, with a lot of tracks, the admin UI is going to be unwieldy. 
+-- For example, with a lot of tracks, the admin UI is going to be unwieldy. 
 - light mode / dark mode AND/OR allow admins to create custom themes from a dashboard (I have rudimentary color picking for some buttons right now)
 - allow admins to tag their projects / versions (ie. "sketch" / "mixing" / "mastering" / "completed")
 - probably better security checks; right now its pretty rudimentary + assumes a single admin who sets a secure password ahead of time
-- - need MIME type checking for file uploads.
+-- need MIME type checking for file uploads.
 
 ## What is the expected use case?
 I see myself using it this way:
@@ -68,9 +68,9 @@ services:
 
 ## Installation (Not as Easy)
 1. Download this repo
-2. run 'docker compose build' to create the docker image on your system.
-3. run 'cp .env.example .env' and then edit .env so your environment variables are set properly. Do not run the docker without editing this first!
-4. run the service with 'docker compose up -d' 
+2. run ```docker compose build``` to create the docker image on your system.
+3. run ```cp .env.example .env``` and then edit .env so your environment variables are set properly. Do not run the docker without editing this first!
+4. run the service with ```docker compose up -d```
 5. The docker container will create the necessary folder structure, as well as the database on first run.
 
 ## Shutting down the service
