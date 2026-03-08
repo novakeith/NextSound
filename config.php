@@ -6,6 +6,7 @@ define('DB_PATH', __DIR__ . '/data/nextsound.db');
 define('UPLOAD_DIR', __DIR__ . '/uploads/');
 define('ADMIN_PASSWORD', getenv('ADMIN_PASSWORD')); 
 define('SITE_TITLE', getenv('SITE_TITLE') ?: 'NextSound'); // if defined as an env var in docker, it will insert that into the db; if not, default to NextSound.
+define('SITE_URL', getenv('SITE_URL') ?: '127.0.0.1'); // important for linking purposes
 
 // database connection / creation (if it doesnt exist)
 try {
@@ -59,6 +60,7 @@ try {
 			INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('comments_enabled', '1');
 			INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('primary_color', '#3498db');
 			INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_title', '" . SITE_TITLE ."');
+			INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_url', '" . SITE_URL ."');
 			
         ");
     }
@@ -71,8 +73,22 @@ try {
 $stmt = $db->query("SELECT setting_key, setting_value FROM site_settings");
 $settings = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
+// ################
 // helper functions
 function isAdmin() { return isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true; }
 function generateSlug($l = 8) { return substr(str_shuffle(str_repeat('0123456789abcdefghijklmnopqrstuvwxyz', 5)), 0, $l); }
+
+// webhook functionality
+function sendwebhookNotification($url, $message) {
+    if (!$url) return; // Do nothing if no webhook is set
+
+    $data = json_encode(['content' => $message]);
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_exec($ch);
+    curl_close($ch);
+}
 
 ?>

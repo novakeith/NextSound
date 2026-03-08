@@ -32,6 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <form method="POST">
 		<label>Site Title</label>
         <input type="text" style="width: 150px;" name="set[site_title]" value="<?= $settings['site_title'] ?? '' ?>" placeholder="<?= $settings['site_title'] ?>">
+		
+		<label>Site URL</label>
+        <input type="text" name="set[site_url]" value="<?= $settings['site_url'] ?? '' ?>" placeholder="E.G. https://nextsound.mysite.com <- No Trailing Slash">
 	
         <label>Primary Theme Color</label>
         <input type="color" name="set[primary_color]" style="width: 50px; height: 50px;" value="<?= $settings['primary_color'] ?>">
@@ -42,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <option value="0" <?= $settings['comments_enabled'] == '0' ? 'selected' : '' ?>>Disabled</option>
         </select>
 
-        <label>Discord Webhook URL</label>
+        <label>Webhook URL (e.g. Discord)</label>
         <input type="text" name="set[webhook_url]" value="<?= $settings['webhook_url'] ?? '' ?>" placeholder="https://discord.com/api/webhooks/...">
 		
         <br /><button type="submit" class="btn">Save Configuration</button>

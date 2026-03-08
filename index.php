@@ -66,6 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     if (!empty($text)) {
         $stmt = $db->prepare("INSERT INTO comments (version_id, timestamp, author_name, author_token, text) VALUES (?, ?, ?, ?, ?)");
         $stmt->execute([$version_id, $timestamp, $author, $author_token, $text]);
+		
+		// send webhook msg
+		sendwebhookNotification($settings['webhook_url'], "New comment left on project '" . $project['title'] . "', at URL " . $settings['site_url'] . "/share/" . $project['slug']);
+				
     }
     
     // Respond with success so the frontend knows to reload
@@ -280,7 +284,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             commentTimeDisplay.innerText = formatTime(now);
         };
 
-        // Submit form
+        // Submit comment form
         document.getElementById('commentForm').onsubmit = async (e) => {
 			e.preventDefault();
 			
