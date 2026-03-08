@@ -16,7 +16,7 @@ try {
 
     $check = $db->query("SELECT name FROM sqlite_master WHERE type='table' AND name='projects'");
     if (!$check->fetch()) {
-		$sql = file_get_contents('/assets/schema.sql');
+		$sql = file_get_contents(__DIR__ . '/assets/schema.sql');
         $db->exec($sql);
 		
 		// load in defaults from .env or -e when running docker
