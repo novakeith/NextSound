@@ -76,6 +76,9 @@ services:
 4. run the service with ```docker compose up -d```
 5. The docker container will create the necessary folder structure, as well as the database on first run.
 
+## Installation (Unraid)
+See [here](https://github.com/novakeith/NextSound-Unraid). I'm eventually going to work on getting this added to the community app store.
+
 ## Shutting down the service
 If you want to cleanly reset all the data this service has created but retain the install files to run again in the future, you can run CLEANUP.sh - this will erase everything in the /data/ and /uploads/ folders.
 
