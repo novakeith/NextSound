@@ -17,15 +17,15 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Edit: <?= htmlspecialchars($p['title']) ?></title>
+    <title><?= htmlspecialchars($settings['site_title']) ?> | Edit: <?= htmlspecialchars($p['title']) ?></title>
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
 	<link rel="stylesheet" href="/assets/style/style.css">
-    <style>
+    <!--<style>
         body { font-family: sans-serif; background: #121212; color: #eee; padding: 2rem; }
         .form-group { margin-bottom: 1.5rem; }
         label { display: block; margin-bottom: 0.5rem; color: #888; font-weight: bold; }
 
-    </style>
+    </style>--!>
 </head>
 <body>
 	<!-- Navigation Bar --!>

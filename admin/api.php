@@ -225,3 +225,4 @@ if ($action === 'toggle_download') {
     echo "Status Updated";
     exit;
 }
+

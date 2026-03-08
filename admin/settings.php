@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <h2>Site Settings</h2>
     <form method="POST">
 		<label>Site Title</label>
-        <input type="text" style="width: 150px;" name="set[site_title]" value="<?= $settings['site_title'] ?? '' ?>" placeholder="<?= $settings['site_title'] ?>">
+        <input type="text" name="set[site_title]" value="<?= $settings['site_title'] ?? '' ?>" placeholder="<?= $settings['site_title'] ?>">
 		
 		<label>Site URL</label>
         <input type="text" name="set[site_url]" value="<?= $settings['site_url'] ?? '' ?>" placeholder="E.G. https://nextsound.mysite.com <- No Trailing Slash">

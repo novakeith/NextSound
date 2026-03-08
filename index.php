@@ -49,36 +49,6 @@ if ($project) {
     $allVersions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Handle Comments on a project 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_comment') {
-    $version_id = (int)$_POST['version_id'];
-    $timestamp = (float)$_POST['timestamp'];
-    $author = trim($_POST['author']) ?: 'Anonymous';
-    $text = trim($_POST['text']);
-    
-    // Give the commenter a 30-day tracking cookie
-	// eventually this will mean they wont have to retype their name, 
-	// and I can give them controls to edit/delete their comments. But not yet.
-	// commenting this out for now.
-    //$author_token = $_COOKIE['nextsound_guest'] ?? bin2hex(random_bytes(16));
-    //setcookie('nextsound_guest', $author_token, time() + (60 * 60 * 24 * 30), "/"); 
-
-    if (!empty($text)) {
-        $stmt = $db->prepare("INSERT INTO comments (version_id, timestamp, author_name, author_token, text) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$version_id, $timestamp, $author, $author_token, $text]);
-		
-		// send webhook msg
-		sendwebhookNotification($settings['webhook_url'], "New comment left on project '" . $project['title'] . "', at URL " . $settings['site_url'] . "/share/" . $project['slug']);
-				
-    }
-    
-    // Respond with success so the frontend knows to reload
-    header('Content-Type: application/json');
-    echo json_encode(['status' => 'success']);
-    exit;
-}
-
-
 ?>
 
 <!DOCTYPE html>
@@ -298,8 +268,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 			formData.append('timestamp', timestamp);
 			formData.append('author', author);
 			formData.append('text', text);
+			formData.append('project_title', '<?= $project['title'] ?>');
+			formData.append('project_slug', '<?= $project['slug'] ?>');
 
-			const response = await fetch(window.location.href, { 
+			//const response = await fetch(window.location.href, { 
+			const response = await fetch("/action.php", { 
 				method: 'POST',
 				body: formData
 			});
