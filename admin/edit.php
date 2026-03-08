@@ -34,6 +34,7 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
 	<div class="main-content">
     <h1>Edit Project</h1>
 
+	<div class="card">
     <form action="api.php" method="POST">
         <input type="hidden" name="action" value="update_project">
         <input type="hidden" name="project_id" value="<?= $p['id'] ?>">
@@ -49,8 +50,8 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
         </div>
 
         <div class="form-group">
-            <label>General Project Notes (Backstory)</label>
-            <textarea name="notes" rows="5"><?= htmlspecialchars($p['notes']) ?></textarea>
+            <label>Project Notes</label>
+            <textarea name="notes" class="prj-notes"><?= htmlspecialchars($p['notes']) ?></textarea>
         </div>
 
         <h3>Version Changelogs</h3>
@@ -80,6 +81,7 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
 			<a href="/admin/index.php" class="btn btn-sm" style="width:75px;">Cancel</a>
 		</div>
     </form>
+	</div>
 	
 	<form id="delete-helper-form" action="api.php" method="POST" style="display:none;">
 		<input type="hidden" name="action" value="delete_version">

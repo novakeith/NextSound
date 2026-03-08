@@ -27,8 +27,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php include('../nav.php') ?>
 
 <div class="main-content">
-<div class="settings-card">
-    <h2>Site Settings</h2>
+<h1>Site Settings</h1>
+
+<div class="card">
+    
     <form method="POST">
 		<label>Site Title</label>
         <input type="text" name="set[site_title]" value="<?= $settings['site_title'] ?? '' ?>" placeholder="<?= $settings['site_title'] ?>">
