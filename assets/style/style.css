@@ -142,7 +142,7 @@
 			background: #1e1e1e; 
 			padding: 1rem; 
 			border-radius: 8px; 
-			margin-bottom: 1rem; 
+			margin-bottom: 0.5rem; 
 			border: 1px solid #333; 
 		}
 		
@@ -289,3 +289,8 @@
 		.checkbox {
 			width: 25px;
 		}
+		
+		.hr {
+		border: 0.5px solid #333; 
+		margin: 2rem 0;
+		}*/

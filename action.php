@@ -1,4 +1,5 @@
 <?php
+// this file is essentially the non-admin API file - what a non-logged in user can do, it will flow through here. (Eventually)
 require_once('config.php');
 
 $action = $_POST['action'] ?? '';

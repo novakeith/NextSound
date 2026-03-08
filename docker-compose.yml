@@ -2,13 +2,11 @@ services:
   nextsound:
     build: .
     image: novakeith/nextsound:latest
-    container_name: nextsound_app
+    container_name: nextsound
     # change this port if you want. Default is 8027.
     ports:
       - "8027:80"
     volumes:
-    #  uncomment next line when building new docker container :)
-    #  - .:/var/www/html
       - ./data:/var/www/html/data
       - ./uploads:/var/www/html/uploads
     # Make sure you open the .env file and update the defaults. Example .env file is at: .env.example

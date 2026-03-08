@@ -20,12 +20,6 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
     <title><?= htmlspecialchars($settings['site_title']) ?> | Edit: <?= htmlspecialchars($p['title']) ?></title>
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
 	<link rel="stylesheet" href="/assets/style/style.css">
-    <!--<style>
-        body { font-family: sans-serif; background: #121212; color: #eee; padding: 2rem; }
-        .form-group { margin-bottom: 1.5rem; }
-        label { display: block; margin-bottom: 0.5rem; color: #888; font-weight: bold; }
-
-    </style>--!>
 </head>
 <body>
 	<!-- Navigation Bar --!>
@@ -33,7 +27,11 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
 	
 	<div class="main-content">
     <h1>Edit Project</h1>
-
+		<?php if (isset($_GET['success'])) { ?>
+			<div class='version-badge'>
+				<div>Changes saved</div>
+			</div>
+		<?php } ?>
 	<div class="card">
     <form action="api.php" method="POST">
         <input type="hidden" name="action" value="update_project">
@@ -54,11 +52,11 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
             <textarea name="notes" class="prj-notes"><?= htmlspecialchars($p['notes']) ?></textarea>
         </div>
 
-        <h3>Version Changelogs</h3>
+        <h3>Version Management:</h3>
         <?php foreach($vs as $v): ?>
 			<div class="version-row" style="display: flex; justify-content: space-between; align-items: center;">
 				<div style="flex-grow: 1;">
-					<label>Version <?= $v['version_number'] ?> (<?= $v['filename'] ?>)</label>
+					<label style="font-size: 0.6rem"><?= $v['filename'] ?> | Original filename: <?= $v['origfilename'] ?> | Version <?= $v['version_number'] ?> changelog:</label>
 					<input type="text" name="versions[<?= $v['id'] ?>]" value="<?= htmlspecialchars($v['changelog']) ?>" style="width:50%;" placeholder="Describe what changed...">
 				</div>
 				<div style="padding: 1px;">
@@ -80,6 +78,7 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
 			<button type="submit" class="btn btn-sm" style="width:150px;">Save Changes</button>
 			<a href="/admin/index.php" class="btn btn-sm" style="width:75px;">Cancel</a>
 		</div>
+
     </form>
 	</div>
 	
@@ -88,6 +87,22 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
 		<input type="hidden" name="version_id" id="delete-version-id">
 		<input type="hidden" name="project_id" value="<?= $p['id'] ?>">
 	</form>
+	
+	<hr class='hr'>
+	<!-- Upload new version --!>
+		<div class='card'>
+			<div style="margin-top: 1rem;">
+                <form action="api.php" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="new_version">
+                    <input type="hidden" name="project_id" value="<?= $p['id'] ?>">
+					<label><small>Upload New Version:</small></label>
+                    <p><input type="file" name="audio_file" accept="audio/*" required></p>
+					<p><input type="text" name="changelog" placeholder="What changed in this mix?"></p>
+					<p><input name="downloads" value="1" type="checkbox" class="download-toggle checkbox"><label style='display: inline;'>Allow downloads of this version?</label></p>
+                    <p><button type="submit" class="btn btn-alt">Upload</button></p>
+                </form>
+            </div>
+		</div>
 	
 	<script>
 			document.querySelectorAll('.download-toggle-btn').forEach(btn => {

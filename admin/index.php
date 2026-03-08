@@ -34,13 +34,13 @@ $projects = $db->query("SELECT * FROM projects ORDER BY created_at DESC")->fetch
         </form>
     </div>
 
-    <hr style="border: 0.5px solid #333; margin: 2rem 0;">
+    <hr class='hr'>
 
     <?php foreach($projects as $p): ?>
         <div class="card">
             <div class="flex">
                 <div>
-					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+					<div style="display: flex; justify-content: space-between; align-items: center;">
 						<div>
 							<strong>
 								<a class="sharelink" href='../share/<?= $p['slug'] ?>'>
@@ -60,7 +60,7 @@ $projects = $db->query("SELECT * FROM projects ORDER BY created_at DESC")->fetch
 						<div style="display: flex; gap: 10px; align-items: center; margin-left: 20px;">
 							<a href="edit.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-alt">✏️ Edit</a>
 							
-							<form action="api.php" method="POST" style="margin:0;" onsubmit="return confirm('Nuke this project?');">
+							<form action="api.php" method="POST" style="margin:0;" onsubmit="return confirm('Erase this project?');">
 								<input type="hidden" name="action" value="delete_project">
 								<input type="hidden" name="project_id" value="<?= $p['id'] ?>">
 								<button type="submit" class="btn btn-sm btn-danger">🗑️ Delete</button>
@@ -83,7 +83,7 @@ $projects = $db->query("SELECT * FROM projects ORDER BY created_at DESC")->fetch
 		
             </div>
             
-            <div style="margin-top: 1rem;">
+            <!--<div style="margin-top: 1rem;">
                 <form action="api.php" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="new_version">
                     <input type="hidden" name="project_id" value="<?= $p['id'] ?>">
@@ -93,8 +93,8 @@ $projects = $db->query("SELECT * FROM projects ORDER BY created_at DESC")->fetch
 					<p><input name="downloads" value="1" type="checkbox" class="download-toggle checkbox"><label style='display: inline;'>Allow Downloads?</label></p>
                     <p><button type="submit" class="btn btn-alt">Upload New Version</button></p>
                 </form>
-            </div>
-        </div>
+            </div> --!>
+        </div> 
     <?php endforeach; 
 	
 	if (empty($projects)) {

@@ -40,8 +40,8 @@ if ($action === 'new_project') {
             move_uploaded_file($file['tmp_name'], $projectFolder . $filename);
 
             // Log Version 1
-            $stmt = $db->prepare("INSERT INTO versions (project_id, filename, version_number, changelog, allow_download) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$projectId, $filename, 1, $changelog, $downloads]);
+            $stmt = $db->prepare("INSERT INTO versions (project_id, filename, origfilename, version_number, changelog, allow_download) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$projectId, $filename, $file['name'], 1, $changelog, $downloads]);
 
             $db->commit();
             header("Location: index.php?success=ProjectCreated");
@@ -78,11 +78,11 @@ if ($action === 'new_version') {
     $filename = "v" . $nextVersion . "_" . time() . "." . $ext;
     move_uploaded_file($file['tmp_name'], UPLOAD_DIR . $projectId . '/' . $filename);
 
-	$stmt = $db->prepare("INSERT INTO versions (project_id, filename, version_number, changelog, allow_download, is_active) VALUES (?, ?, ?, ?, ?, 1)");
-	$stmt->execute([$projectId, $filename, $nextVersion, $changelog, $downloads]);
+	$stmt = $db->prepare("INSERT INTO versions (project_id, filename, origfilename, version_number, changelog, allow_download, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)");
+	$stmt->execute([$projectId, $filename, $file['name'], $nextVersion, $changelog, $downloads]);
 
 
-    header("Location: index.php?success=VersionAdded");
+    header("Location: edit.php?id=" . $projectId . "&success=VersionAdded");
 }
 
 // --- Toggle Privacy of a Project---
