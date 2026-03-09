@@ -1,5 +1,6 @@
 <?php
 require_once('../config.php');
+require_once('../assets/func.php');
 
 if (!isAdmin()) {
     header('Content-Type: application/json');
@@ -8,6 +9,7 @@ if (!isAdmin()) {
 }
 
 $action = $_POST['action'] ?? '';
+$getaction = $_GET['action'] ?? '';
 
 // --- Upload New Project ---
 if ($action === 'new_project') {
@@ -226,3 +228,24 @@ if ($action === 'toggle_download') {
     exit;
 }
 
+// --- admin initiated database update:
+if ($getaction === 'db_update') {
+	if (!isset($settings['db_schema']))
+	{ 
+		$schema = 1; 
+	}
+	else 
+	{ 
+		$schema = $settings['db_schema']; 
+	}
+	echo "Database migration about to run...";
+	try {
+		runDBmigration($schema, $db);
+		echo "Database migration complete.";
+		header("Location: settings.php?&success=DBUpdated");
+	} catch (Exception $e) {
+        die("Migration Failed: " . $e->getMessage());
+    }
+	
+	header("Location: settings.php?&success=DBUpdated");
+}

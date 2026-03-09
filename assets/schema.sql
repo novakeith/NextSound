@@ -42,5 +42,4 @@
 	-- Some site setting defaults
 	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('comments_enabled', '1');
 	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('primary_color', '#3498db');
-	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_title', 'Nextsound');
-	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_url', '127.0.0.1:8027');
+	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('db_schema', '1');

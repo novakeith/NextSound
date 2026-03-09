@@ -1,5 +1,7 @@
 <?php
 require_once('../config.php');
+require_once('../assets/func.php');
+
 if (!isAdmin()) { header("Location: login.php"); exit; }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -53,8 +55,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <br /><button type="submit" class="btn">Save Configuration</button>
     </form>
 </div>
+
+<?php
+// check for DB schema update; if so, display button to run update.
+if (!isset($settings['db_schema'])){ $schema = 1; } else { $schema = $settings['db_schema']; }
+
+if (checkDB_UpdateAvailable($schema, 2))
+{
+?>
+	<div class="card">
+	<div>
+		<span>Database update is available. This will <strong>not</strong> remove any data. Click <a href='api.php?action=db_update'>here</a> to update.</span>
+	</div>
+	</div>
+<?php
+}
+
+if (isset($_GET['success']) && $_GET['success'] == "DBUpdated")
+{
+?>
+	<div class="card">
+	<div>
+		<span>Database updated successfully.</span>
+	</div>
+	</div>
+<?php 
+}
+?>
+
+
 </div>
 	<!-- Footer --!>
     <?php include('../footer.php') ?>	
+
 </body>
 </html>
