@@ -65,7 +65,7 @@ if (checkDB_UpdateAvailable($schema, 2))
 ?>
 	<div class="card">
 	<div>
-		<span>Database update is available. This will <strong>not</strong> remove any data. Click <a href='api.php?action=db_update'>here</a> to update.</span>
+		<span>Database update is available. This will <strong>not</strong> remove any data. Click <a class="btn btn-sm" href='api.php?action=db_update'>here</a> to update.</span>
 	</div>
 	</div>
 <?php
