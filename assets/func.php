@@ -27,7 +27,9 @@ function runDBmigration($schema, $db){
 		$db->exec("INSERT OR REPLACE INTO site_settings (setting_key, setting_value) VALUES ('db_schema', '2')");
 		
 		// add 'original filename' attribute to versions 
-		$db->exec("ALTER TABLE versions ADD COLUMN origfilename TEXT NOT NULL");
+		$db->exec("ALTER TABLE versions ADD COLUMN origfilename TEXT NOT NULL DEFAULT ''");
+		// since users will be updating from v1, they wont have original filenames in the database; this will give them something at least
+		$db->exec("UPDATE versions SET origfilename = filename WHERE origfilename = ''");
 	}
 }
 ?>
