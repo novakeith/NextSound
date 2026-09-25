@@ -45,6 +45,7 @@ $confirmProject = $projectsById[(int)($_GET['project_id'] ?? 0)] ?? null;
     <title><?= h($settings['site_title']) ?> | Playlist: <?= h($pl['title']) ?></title>
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
 	<link rel="stylesheet" href="/assets/style/style.css">
+	<script src="/assets/js/sortable.js"></script>
 </head>
 <body>
 	<!-- Navigation Bar --!>
@@ -141,14 +142,16 @@ $confirmProject = $projectsById[(int)($_GET['project_id'] ?? 0)] ?? null;
 		<div class="card"><span>No tracks yet - add some below.</span></div>
 	<?php endif; ?>
 
+	<div id="playlistItems">
 	<?php foreach ($items as $i => $item):
 		$project = $projectsById[$item['project_id']];
 		$versions = $versionsByProject[$item['project_id']] ?? [];
 		$current = currentVersionOf($versions);
 	?>
-		<div class="version-row playlist-item-row">
+		<div class="version-row playlist-item-row" data-item-id="<?= $item['id'] ?>">
+			<span class="drag-handle" title="Drag to reorder">⠿</span>
 			<div style="flex-grow: 1;">
-				<strong><?= $i + 1 ?>. <?= h($project['title']) ?></strong>
+				<strong><span class="item-number"><?= $i + 1 ?></span>. <?= h($project['title']) ?></strong>
 				<small>(by <?= h($project['artistname']) ?>)</small>
 				<?php if (!$project['is_public']): ?><span class="private-badge">Private</span><?php endif; ?>
 			</div>
@@ -169,8 +172,8 @@ $confirmProject = $projectsById[(int)($_GET['project_id'] ?? 0)] ?? null;
 				<input type="hidden" name="action" value="move_playlist_item">
 				<?= csrf_field() ?>
 				<input type="hidden" name="item_id" value="<?= $item['id'] ?>">
-				<button type="submit" name="dir" value="up" class="btn btn-sm btn-alt" title="Move up" <?= $i === 0 ? 'disabled' : '' ?>>▲</button>
-				<button type="submit" name="dir" value="down" class="btn btn-sm btn-alt" title="Move down" <?= $i === count($items) - 1 ? 'disabled' : '' ?>>▼</button>
+				<button type="submit" name="dir" value="up" class="btn btn-sm btn-alt move-up" title="Move up" <?= $i === 0 ? 'disabled' : '' ?>>▲</button>
+				<button type="submit" name="dir" value="down" class="btn btn-sm btn-alt move-down" title="Move down" <?= $i === count($items) - 1 ? 'disabled' : '' ?>>▼</button>
 			</form>
 
 			<form action="api.php" method="POST" style="margin:0;">
@@ -181,6 +184,10 @@ $confirmProject = $projectsById[(int)($_GET['project_id'] ?? 0)] ?? null;
 			</form>
 		</div>
 	<?php endforeach; ?>
+	</div>
+	<?php if (count($items) > 1): ?>
+		<p style="color: #777; font-size: 0.8rem;">Drag ⠿ to reorder - changes save automatically.</p>
+	<?php endif; ?>
 
 	<!-- Add a track --!>
 	<div class="card" style="margin-top: 1rem;">
@@ -217,6 +224,31 @@ $confirmProject = $projectsById[(int)($_GET['project_id'] ?? 0)] ?? null;
 			versionSelect.replaceChildren(...options);
 		}
 		if (projectSelect) { projectSelect.onchange = fillVersions; fillVersions(); }
+
+		// drag-and-drop reordering: saves the new order right away
+		const itemList = document.getElementById('playlistItems');
+		makeSortable(itemList, {
+			item: '.playlist-item-row',
+			handle: '.drag-handle',
+			onEnd: () => {
+				const rows = [...itemList.querySelectorAll('.playlist-item-row')];
+				// renumber and fix which ▲/▼ buttons are disabled, without a reload
+				rows.forEach((row, i) => {
+					row.querySelector('.item-number').textContent = i + 1;
+					row.querySelector('.move-up').disabled = i === 0;
+					row.querySelector('.move-down').disabled = i === rows.length - 1;
+				});
+
+				const body = new URLSearchParams({ action: 'reorder_playlist', ajax: '1', playlist_id: <?= (int)$pl['id'] ?>, csrf_token: <?= json_encode(csrf_token()) ?> });
+				rows.forEach((row) => body.append('item_ids[]', row.dataset.itemId));
+				fetch('api.php', { method: 'POST', body })
+					.then((res) => res.json().then((data) => { if (!res.ok) throw new Error(data.message); }))
+					.catch((err) => {
+						alert((err.message || 'Could not save the new order.') + ' The page will reload.');
+						location.reload();
+					});
+			},
+		});
 	</script>
 	</div>
 

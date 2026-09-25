@@ -19,6 +19,23 @@ function columnExists($db, $table, $column){
 	return FALSE;
 }
 
+// The largest single file PHP will accept, in bytes: the smaller of upload_max_filesize and post_max_size (0 = no limit)
+function uploadLimitBytes(){
+	$toBytes = function($value){
+		$value = trim((string)$value);
+		$bytes = (float)$value;
+		switch (strtolower(substr($value, -1))) {
+			// deliberate fall-through: G = 1024 M, M = 1024 K, K = 1024 bytes
+			case 'g': $bytes *= 1024;
+			case 'm': $bytes *= 1024;
+			case 'k': $bytes *= 1024;
+		}
+		return (int)$bytes;
+	};
+	$limits = array_filter([$toBytes(ini_get('upload_max_filesize')), $toBytes(ini_get('post_max_size'))]);
+	return $limits ? min($limits) : 0;
+}
+
 // ---- playlist helpers (admin side) ----
 
 // Distinct private (unlisted) projects in a playlist: [[id, title], ...]

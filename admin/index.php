@@ -20,6 +20,7 @@ if (isset($_GET['confirm_private']) && PLAYLISTS_ENABLED) {
     <title>Dashboard: <?= h($settings['site_title']) ?></title>
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
 	<link rel="stylesheet" href="/assets/style/style.css">
+	<script src="/assets/js/sortable.js"></script>
 </head>
 
 <body>
@@ -45,19 +46,42 @@ if (isset($_GET['confirm_private']) && PLAYLISTS_ENABLED) {
 		</div>
 	<?php endif; ?>
 
+    <!-- Upload tracks: one or many --!>
     <div class="card">
-        <h3>Create New Project</h3>
-        <form action="api.php" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="action" value="new_project">
-            <?= csrf_field() ?>
-            <input type="text" name="title" placeholder="Project Title" required><br />
-			<input type="text" name="artistname" placeholder="Artist Name" required>
-            <p><input class="btn btn-alt" type="file" name="audio_file" accept="audio/*" required></p>
-			<p><textarea name="notes" class="prj-notes" placeholder="Project backstory..."></textarea></p>
-			<p><input type="text" name="changelog" placeholder="Specific notes for this initial release?"></p>
-			<p><input name="downloads" value="1" type="checkbox" class="download-toggle checkbox"><label style='display: inline;'>Allow Downloads?</label></p>
-            <p><button type="submit" class="btn">Start Project</button></p>
-        </form>
+        <h3>Upload Tracks</h3>
+        <div id="dropZone" class="drop-zone" tabindex="0" role="button">
+            <strong>Drag &amp; drop audio files here, or click to choose</strong>
+            <small>MP3, WAV, OGG or FLAC<?= uploadLimitBytes() ? ' - up to ' . round(uploadLimitBytes() / 1048576) . 'MB each' : '' ?>. Pick several at once to upload a whole batch.</small>
+            <input type="file" id="fileInput" multiple accept="audio/*,.mp3,.wav,.ogg,.flac" hidden>
+        </div>
+
+        <div id="uploadPanel" hidden>
+            <div class="bulk-apply">
+                <span>Apply to all:</span>
+                <input type="text" id="applyArtist" placeholder="Artist name">
+                <button type="button" class="btn btn-sm btn-alt" id="applyArtistBtn">Set artist</button>
+                <button type="button" class="btn btn-sm btn-alt" id="applyDownloadsOn">Downloads on</button>
+                <button type="button" class="btn btn-sm btn-alt" id="applyDownloadsOff">Downloads off</button>
+            </div>
+
+            <div id="uploadRows"></div>
+            <p id="reorderHint" style="color: #777; font-size: 0.8rem;" hidden>Drag ⠿ to change the order - it's the playlist order if you create one below.</p>
+
+            <?php if (PLAYLISTS_ENABLED): ?>
+            <div class="bulk-playlist">
+                <label style="display: inline; color: inherit; font-weight: normal;">
+                    <input type="checkbox" id="makePlaylist" class="checkbox"> Also create a playlist from these tracks, in this order
+                </label>
+                <input type="text" id="playlistTitle" placeholder="Playlist / album title" hidden>
+            </div>
+            <?php endif; ?>
+
+            <div class="button-group">
+                <button type="button" class="btn" id="uploadBtn">Upload</button>
+                <button type="button" class="btn btn-alt" id="clearBtn">Clear list</button>
+            </div>
+            <div id="uploadSummary" class="upload-summary" hidden></div>
+        </div>
     </div>
 
     <hr class='hr'>
@@ -136,6 +160,15 @@ if (isset($_GET['confirm_private']) && PLAYLISTS_ENABLED) {
 		}
 	
 	?>
+
+	<script>
+		window.NEXTSOUND_UPLOAD = <?= json_encode([
+			'csrfToken' => csrf_token(),
+			'maxBytes' => uploadLimitBytes(),
+			'playlistsEnabled' => PLAYLISTS_ENABLED,
+		]) ?>;
+	</script>
+	<script src="/assets/js/bulk-upload.js"></script>
 
 	<script>
 		function copyShareLink(slug) {

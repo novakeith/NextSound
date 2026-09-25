@@ -23,16 +23,25 @@ verify_csrf();
 
 $action = $_POST['action'] ?? '';
 
-// Validates an uploaded audio file and returns the extension to save it with; dies with a message if it's no good.
+// The bulk uploader and drag-and-drop reordering call in the background and want JSON back instead of a redirect
+$wantsJson = ($_POST['ajax'] ?? '') === '1';
+function jsonOut($code, $data) {
+	http_response_code($code);
+	header('Content-Type: application/json');
+	echo json_encode($data);
+	exit;
+}
+
+// Validates an uploaded audio file and returns the extension to save it with; throws with a message if it's no good.
 function validateAudioUpload($file) {
 	if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) {
-		die("Upload failed (file error code: " . ($file['error'] ?? 'none') . "). The file may be larger than the server's upload limit.");
+		throw new Exception("Upload failed (file error code: " . ($file['error'] ?? 'none') . "). The file may be larger than the server's upload limit.");
 	}
 	// checking against allowed MIME types, detected from the file contents (not the filename)
 	$finfo = new finfo(FILEINFO_MIME_TYPE);
 	$mime = $finfo->file($file['tmp_name']);
 	if (!isset(ALLOWED_AUDIO_TYPES[$mime])) {
-		die('Uploaded file type is not allowed (' . h($mime) . ')');
+		throw new Exception('Uploaded file type is not allowed (' . $mime . ')');
 	}
 	return ALLOWED_AUDIO_TYPES[$mime];
 }
@@ -47,10 +56,10 @@ if ($action === 'new_project') {
 	$artistname = $_POST['artistname'] ?? ''; //grab artist name
 	$downloads = (($_POST['downloads'] ?? '0') === '1') ? 1 : 0; // 0=no, 1=yes for downloads enabled
 
-	$ext = validateAudioUpload($file);
-
-    $db->beginTransaction();
     try {
+		$ext = validateAudioUpload($file);
+        $db->beginTransaction();
+
         // Create Project
         $stmt = $db->prepare("INSERT INTO projects (title, artistname, slug, notes) VALUES (?, ?, ?, ?)");
 		$stmt->execute([$title, $artistname, $slug, $notes]);
@@ -73,10 +82,12 @@ if ($action === 'new_project') {
         $stmt->execute([$projectId, $filename, $file['name'], 1, $changelog, $downloads]);
 
         $db->commit();
+        if ($wantsJson) jsonOut(200, ['status' => 'success', 'id' => (int)$projectId, 'slug' => $slug]);
         header("Location: index.php?success=ProjectCreated");
         exit;
     } catch (Exception $e) {
-        $db->rollBack();
+        if ($db->inTransaction()) $db->rollBack();
+        if ($wantsJson) jsonOut(400, ['status' => 'error', 'message' => $e->getMessage()]);
         die("Upload Failed: " . h($e->getMessage()));
     }
 }
@@ -92,10 +103,10 @@ if ($action === 'new_version') {
 	$stmt->execute([$projectId]);
 	if (!$stmt->fetchColumn()) die("Project not found.");
 
-	$ext = validateAudioUpload($file);
-
-    $db->beginTransaction();
     try {
+		$ext = validateAudioUpload($file);
+        $db->beginTransaction();
+
         // Next version number = highest existing + 1 (COUNT would repeat numbers after a version is deleted)
         $stmt = $db->prepare("SELECT COALESCE(MAX(version_number), 0) FROM versions WHERE project_id = ?");
         $stmt->execute([$projectId]);
@@ -121,7 +132,7 @@ if ($action === 'new_version') {
         header("Location: edit.php?id=" . $projectId . "&success=VersionAdded");
         exit;
     } catch (Exception $e) {
-        $db->rollBack();
+        if ($db->inTransaction()) $db->rollBack();
         die("Upload Failed: " . h($e->getMessage()));
     }
 }
@@ -313,14 +324,51 @@ if (str_contains($action, 'playlist') && !PLAYLISTS_ENABLED) {
 }
 
 // --- Create a playlist ---
+// Optionally pre-filled with project_ids[] (in order) - the bulk uploader uses this to turn an upload batch into a playlist.
 if ($action === 'new_playlist') {
     $title = trim($_POST['title'] ?? '') ?: 'Untitled Playlist';
     $description = $_POST['description'] ?? '';
+    $projectIds = array_map('intval', is_array($_POST['project_ids'] ?? null) ? $_POST['project_ids'] : []);
 
+    $db->beginTransaction();
+    $slug = generateSlug();
     $stmt = $db->prepare("INSERT INTO playlists (title, slug, description) VALUES (?, ?, ?)");
-    $stmt->execute([$title, generateSlug(), $description]);
-    header("Location: playlist_edit.php?id=" . $db->lastInsertId());
+    $stmt->execute([$title, $slug, $description]);
+    $playlistId = (int)$db->lastInsertId();
+
+    // new playlists start private, so no public/private warnings apply here
+    $stmt = $db->prepare("INSERT INTO playlist_items (playlist_id, project_id, position) SELECT ?, id, ? FROM projects WHERE id = ?");
+    foreach ($projectIds as $i => $projectId) {
+        $stmt->execute([$playlistId, $i + 1, $projectId]);
+    }
+    $db->commit();
+
+    if ($wantsJson) jsonOut(200, ['status' => 'success', 'id' => $playlistId, 'slug' => $slug]);
+    header("Location: playlist_edit.php?id=" . $playlistId);
     exit;
+}
+
+// --- Reorder a whole playlist at once (drag and drop) ---
+// item_ids[] must be exactly this playlist's items, in their new order.
+if ($action === 'reorder_playlist') {
+    $playlistId = (int)$_POST['playlist_id'];
+    $newOrder = array_map('intval', is_array($_POST['item_ids'] ?? null) ? $_POST['item_ids'] : []);
+
+    $stmt = $db->prepare("SELECT id FROM playlist_items WHERE playlist_id = ?");
+    $stmt->execute([$playlistId]);
+    $current = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+
+    // someone else may have changed the playlist in another tab - don't guess, ask for a reload
+    $a = $current; $b = $newOrder; sort($a); sort($b);
+    if ($a !== $b) jsonOut(409, ['status' => 'error', 'message' => 'This playlist changed since the page loaded. Reload and try again.']);
+
+    $db->beginTransaction();
+    $stmt = $db->prepare("UPDATE playlist_items SET position = ? WHERE id = ?");
+    foreach ($newOrder as $i => $itemId) {
+        $stmt->execute([$i + 1, $itemId]);
+    }
+    $db->commit();
+    jsonOut(200, ['status' => 'success']);
 }
 
 // --- Edit playlist title/description ---
