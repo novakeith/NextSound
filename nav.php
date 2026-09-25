@@ -1,12 +1,12 @@
     <!-- Override primary color w/ one that admin sets in control panel --!>
 	<style>
     :root {
-        --primary: <?= $settings['primary_color'] ?>;
+        --primary: <?= h($settings['primary_color'] ?? '#3498db') ?>;
     }
 	</style>
 	
 	<div class="navbar">
-        <a href="/" style="color: #fff; text-decoration: none; font-weight: bold;"><?=  $settings['site_title'] ?></a>
+        <a href="/" style="color: #fff; text-decoration: none; font-weight: bold;"><?= h($settings['site_title'] ?? '') ?></a>
         <div>
             <?php if (isAdmin()): ?>
                 <a href="/admin/" class="navlink">Dashboard</a> | 

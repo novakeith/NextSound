@@ -5,36 +5,58 @@ require_once('config.php');
 $action = $_POST['action'] ?? '';
 
 // lets turn away nosy nancy's
-if (!$action){ die('Unauthorized'); }
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !$action){ http_response_code(400); die('Unauthorized'); }
 
-// Handle Comments on a project 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_comment') {
-    $version_id = (int)$_POST['version_id'];
-    $timestamp = (float)$_POST['timestamp'];
-    $author = trim($_POST['author']) ?: 'Anonymous';
-    $text = trim($_POST['text']);
-	$title = $_POST['project_title'];
-	$slug = $_POST['project_slug'];
-    
+function jsonResponse($code, $data) {
+    http_response_code($code);
+    header('Content-Type: application/json');
+    echo json_encode($data);
+    exit;
+}
+
+// Handle Comments on a project
+if ($action === 'add_comment') {
+    // comments can be switched off site-wide; admins can still leave notes for themselves
+    if (($settings['comments_enabled'] ?? '1') !== '1' && !isAdmin()) {
+        jsonResponse(403, ['status' => 'error', 'message' => 'Comments are disabled.']);
+    }
+
+    $version_id = (int)($_POST['version_id'] ?? 0);
+    $slug = (string)($_POST['project_slug'] ?? '');
+    $timestamp = max(0, (float)($_POST['timestamp'] ?? 0));
+    $author = mb_substr(trim((string)($_POST['author'] ?? '')), 0, 100) ?: 'Anonymous';
+    $text = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 5000);
+
+    if ($text === '') {
+        jsonResponse(400, ['status' => 'error', 'message' => 'Comment is empty.']);
+    }
+
+    // Look the project up from the db rather than trusting what the browser sent.
+    // Requiring the slug too means you can only comment on tracks you have the share link for.
+    $stmt = $db->prepare("SELECT p.title, p.slug FROM versions v JOIN projects p ON p.id = v.project_id WHERE v.id = ? AND p.slug = ?");
+    $stmt->execute([$version_id, $slug]);
+    $project = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$project) {
+        jsonResponse(404, ['status' => 'error', 'message' => 'Track not found.']);
+    }
+
     // Give the commenter a 30-day tracking cookie
-	// eventually this will mean they wont have to retype their name, 
+	// eventually this will mean they wont have to retype their name,
 	// and I can give them controls to edit/delete their comments. But not yet.
 	// commenting this out for now.
     //$author_token = $_COOKIE['nextsound_guest'] ?? bin2hex(random_bytes(16));
-    //setcookie('nextsound_guest', $author_token, time() + (60 * 60 * 24 * 30), "/"); 
+    //setcookie('nextsound_guest', $author_token, time() + (60 * 60 * 24 * 30), "/");
+    $author_token = null;
 
-    if (!empty($text)) {
-        $stmt = $db->prepare("INSERT INTO comments (version_id, timestamp, author_name, author_token, text) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$version_id, $timestamp, $author, $author_token, $text]);
-		
-		// send webhook msg
-		sendwebhookNotification($settings['webhook_url'], "New comment left on project '" . $title . "', at URL " . $settings['site_url'] . "/share/" . $slug);
-				
-    }
-    
-    // Respond with success so the frontend knows to reload
-    header('Content-Type: application/json');
-    echo json_encode(['status' => 'success']);
-    exit;
+    $stmt = $db->prepare("INSERT INTO comments (version_id, timestamp, author_name, author_token, text) VALUES (?, ?, ?, ?, ?)");
+    $stmt->execute([$version_id, $timestamp, $author, $author_token, $text]);
+    $commentId = $db->lastInsertId();
+
+	// send webhook msg
+	sendwebhookNotification($settings['webhook_url'] ?? '', "New comment left on project '" . $project['title'] . "', at URL " . ($settings['site_url'] ?? '') . "/share/" . $project['slug']);
+
+    // Respond with success so the frontend knows to show it
+    jsonResponse(200, ['status' => 'success', 'id' => (int)$commentId]);
 }
-?>
+
+jsonResponse(400, ['status' => 'error', 'message' => 'Unknown action.']);

@@ -7,7 +7,7 @@ $activeVersion = null;
 $comments = [];
 
 // Route to project using a version ID (vid) if specified
-$vid = $_GET['vid'] ?? null;
+$vid = isset($_GET['vid']) ? (int)$_GET['vid'] : null;
 
 if ($slug) {
     $stmt = $db->prepare("SELECT * FROM projects WHERE slug = ?");
@@ -20,8 +20,8 @@ if ($slug) {
             $stmt = $db->prepare("SELECT * FROM versions WHERE id = ? AND project_id = ?");
             $stmt->execute([$vid, $project['id']]);
         } else {
-            // Load default active version
-            $stmt = $db->prepare("SELECT * FROM versions WHERE project_id = ? AND is_active = 1 LIMIT 1");
+            // Load default active version (falling back to the newest, in case nothing is marked active)
+            $stmt = $db->prepare("SELECT * FROM versions WHERE project_id = ? ORDER BY is_active DESC, version_number DESC LIMIT 1");
             $stmt->execute([$project['id']]);
         }
         $activeVersion = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -56,7 +56,7 @@ if ($project) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $project ? htmlspecialchars($project['title']) : $settings['site_title'] ?></title>
+    <title><?= h($project ? $project['title'] : $settings['site_title']) ?></title>
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
 	<link rel="stylesheet" href="/assets/style/style.css">
     <script src="https://unpkg.com/wavesurfer.js@7"></script>
@@ -73,10 +73,10 @@ if ($project) {
             <div class="player-card">
 				<h1 style="margin-top: 0; margin-bottom: 5px;"><?= htmlspecialchars($project['title']) ?></h1>
 				
-				<?php if (!empty($project['notes'])): ?>
+				<?php if (!empty($project['notes']) || $activeVersion['allow_download']): ?>
 					<div class="project-notes">
-						<?= nl2br(htmlspecialchars($project['notes'])) ?>
-						<span style="font-size:0.7rem; display: block;"><?php if ($activeVersion['allow_download']): ?><a class="dl-link" href="/download.php?id=<?= $activeVersion['id'] ?>"><i>Download</i></a> <?php endif; ?></span>
+						<?= nl2br(h($project['notes'])) ?>
+						<span style="font-size:0.7rem; display: block;"><?php if ($activeVersion['allow_download']): ?><a class="dl-link" href="/download.php?id=<?= $activeVersion['id'] ?>&amp;s=<?= h($project['slug']) ?>"><i>Download</i></a> <?php endif; ?></span>
 					</div>
 				<?php endif; ?>
 				
@@ -138,7 +138,7 @@ if ($project) {
 								<?php endif; ?>
 								
 								<?php if ($c['status'] !== 'pending'): ?>
-									<span class="status-badge <?= $c['status'] ?>">
+									<span class="status-badge <?= h($c['status']) ?>">
 										<?= $c['status'] === 'accepted' ? '✅ Resolved' : '❌ Declined' ?>
 									</span>
 								<?php endif; ?>
@@ -171,7 +171,7 @@ if ($project) {
 								<small><?= date('M j, Y', strtotime($v['created_at'])) ?></small>
 								
 								<?php if ($v['id'] != $activeVersion['id']): ?>
-									<a href="?slug=<?= $project['slug'] ?>&vid=<?= $v['id'] ?>" class="btn-sm">Switch</a>
+									<a href="?slug=<?= h($project['slug']) ?>&amp;vid=<?= $v['id'] ?>" class="btn-sm">Switch</a>
 								<?php else: ?>
 									<span class="active-badge">Currently Playing</span>
 								<?php endif; ?>
@@ -189,8 +189,8 @@ if ($project) {
             
             <?php foreach ($publicProjects as $p): ?>
                 <div class="player-card" style="padding: 20px;">
-                    <a href="/share/<?= $p['slug'] ?>" style="color: var(--primary); text-decoration: none; font-size: 1.2rem; font-weight: bold;">
-                        <?= htmlspecialchars($p['title']) ?>
+                    <a href="/share/<?= h($p['slug']) ?>" style="color: var(--primary); text-decoration: none; font-size: 1.2rem; font-weight: bold;">
+                        <?= h($p['title']) ?>
                     </a>
                 </div>
             <?php endforeach; ?>
@@ -207,6 +207,12 @@ if ($project) {
 
     <script>
         <?php if ($activeVersion): ?>
+        // Values from PHP - json_encode makes them safe to drop into JS (quotes in titles etc.)
+        const VERSION_ID = <?= json_encode((int)$activeVersion['id']) ?>;
+        const PROJECT_SLUG = <?= json_encode($project['slug']) ?>;
+        const AUDIO_URL = <?= json_encode('/uploads/' . (int)$project['id'] . '/' . rawurlencode($activeVersion['filename'])) ?>;
+        const CSRF_TOKEN = <?= json_encode(isAdmin() ? csrf_token() : '') ?>;
+
         // Initialize WaveSurfer
         const wavesurfer = WaveSurfer.create({
             container: '#waveform',
@@ -215,7 +221,7 @@ if ($project) {
             cursorColor: '#fff',
             barWidth: 2,
             height: 128,
-            url: '/uploads/<?= $project['id'] ?>/<?= $activeVersion['filename'] ?>'
+            url: AUDIO_URL
         });
 
         // Controls
@@ -247,15 +253,18 @@ if ($project) {
         const commentTimeDisplay = document.getElementById('commentTime');
         const timestampInput = document.getElementById('timestampInput');
 
+        // (the form isn't on the page when comments are disabled, so only wire it up if it exists)
+        const commentForm = document.getElementById('commentForm');
+
         // Lock in time when clicking the input
-        textInput.onfocus = () => {
+        if (commentForm) textInput.onfocus = () => {
             const now = wavesurfer.getCurrentTime();
             timestampInput.value = now;
             commentTimeDisplay.innerText = formatTime(now);
         };
 
         // Submit comment form
-        document.getElementById('commentForm').onsubmit = async (e) => {
+        if (commentForm) commentForm.onsubmit = async (e) => {
 			e.preventDefault();
 			
 			const timestamp = timestampInput.value;
@@ -264,15 +273,13 @@ if ($project) {
 
 			const formData = new FormData();
 			formData.append('action', 'add_comment');
-			formData.append('version_id', '<?= $activeVersion['id'] ?>');
+			formData.append('version_id', VERSION_ID);
 			formData.append('timestamp', timestamp);
 			formData.append('author', author);
 			formData.append('text', text);
-			formData.append('project_title', '<?= $project['title'] ?>');
-			formData.append('project_slug', '<?= $project['slug'] ?>');
+			formData.append('project_slug', PROJECT_SLUG);
 
-			//const response = await fetch(window.location.href, { 
-			const response = await fetch("/action.php", { 
+			const response = await fetch("/action.php", {
 				method: 'POST',
 				body: formData
 			});
@@ -281,24 +288,30 @@ if ($project) {
 				// Clear the input
 				textInput.value = '';
 
-				// Manually build and prepend the comment to the list
+				// Manually build and prepend the comment to the list.
+				// Built with textContent (not innerHTML) so whatever someone types is shown as plain text.
 				const list = document.getElementById('commentList');
 				const newComment = document.createElement('div');
 				newComment.className = 'comment';
-				
-				// Format the time for the UI
-				const displayTime = formatTime(timestamp);
-				
-				newComment.innerHTML = `
-					<span class="timestamp" onclick="seekTo(${timestamp})">${displayTime}</span>
-					<strong>${author}:</strong> ${text}
-				`;
-				
+
+				const timeSpan = document.createElement('span');
+				timeSpan.className = 'timestamp';
+				timeSpan.textContent = formatTime(timestamp);
+				timeSpan.onclick = () => seekTo(parseFloat(timestamp));
+
+				const authorEl = document.createElement('strong');
+				authorEl.textContent = author + ':';
+
+				newComment.append(timeSpan, ' ', authorEl, ' ', text);
+
 				// Add to top of list (or use appendChild for bottom)
 				list.prepend(newComment);
-				
+
 				// Remove the "No comments yet" message if it exists
 				if(list.querySelector('p')) list.querySelector('p').remove();
+			} else {
+				const err = await response.json().catch(() => ({}));
+				alert(err.message || 'Could not post comment.');
 			}
 		};
 	
@@ -313,8 +326,7 @@ if ($project) {
 				// Send the request to api.php in the background
 				fetch('/admin/api.php', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: `action=set_comment_status&comment_id=${commentId}&status=${newStatus}`
+					body: new URLSearchParams({ action: 'set_comment_status', comment_id: commentId, status: newStatus, csrf_token: CSRF_TOKEN })
 				})
 				.then(response => {
 					if (response.ok) {
@@ -342,8 +354,7 @@ if ($project) {
 
 				fetch('/admin/api.php', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: `action=delete_comment&comment_id=${commentId}`
+					body: new URLSearchParams({ action: 'delete_comment', comment_id: commentId, csrf_token: CSRF_TOKEN })
 				})
 				.then(response => {
 					if (response.ok) {

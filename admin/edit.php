@@ -35,6 +35,7 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
 	<div class="card">
     <form action="api.php" method="POST">
         <input type="hidden" name="action" value="update_project">
+        <?= csrf_field() ?>
         <input type="hidden" name="project_id" value="<?= $p['id'] ?>">
 
         <div class="form-group">
@@ -56,7 +57,7 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
         <?php foreach($vs as $v): ?>
 			<div class="version-row" style="display: flex; justify-content: space-between; align-items: center;">
 				<div style="flex-grow: 1;">
-					<label style="font-size: 0.6rem"><?= $v['filename'] ?> | Original filename: <?= $v['origfilename'] ?> | Version <?= $v['version_number'] ?> changelog:</label>
+					<label style="font-size: 0.6rem"><?= h($v['filename']) ?> | Original filename: <?= h($v['origfilename']) ?> | Version <?= $v['version_number'] ?> changelog:</label>
 					<input type="text" name="versions[<?= $v['id'] ?>]" value="<?= htmlspecialchars($v['changelog']) ?>" style="width:50%;" placeholder="Describe what changed...">
 				</div>
 				<div style="padding: 1px;">
@@ -84,8 +85,8 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
 	
 	<form id="delete-helper-form" action="api.php" method="POST" style="display:none;">
 		<input type="hidden" name="action" value="delete_version">
+		<?= csrf_field() ?>
 		<input type="hidden" name="version_id" id="delete-version-id">
-		<input type="hidden" name="project_id" value="<?= $p['id'] ?>">
 	</form>
 	
 	<hr class='hr'>
@@ -94,6 +95,7 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
 			<div style="margin-top: 1rem;">
                 <form action="api.php" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="new_version">
+                    <?= csrf_field() ?>
                     <input type="hidden" name="project_id" value="<?= $p['id'] ?>">
 					<label><small>Upload New Version:</small></label>
                     <p><input type="file" name="audio_file" accept="audio/*" required></p>
@@ -116,8 +118,7 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
 
 				fetch('api.php', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: `action=toggle_download&version_id=${versionId}&status=${newStatus}`
+					body: new URLSearchParams({ action: 'toggle_download', version_id: versionId, status: newStatus, csrf_token: <?= json_encode(csrf_token()) ?> })
 				})
 				.then(res => {
 					if (res.ok) {

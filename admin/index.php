@@ -8,7 +8,7 @@ $projects = $db->query("SELECT * FROM projects ORDER BY created_at DESC")->fetch
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard: <?= $settings['site_title'] ?></title>
+    <title>Dashboard: <?= h($settings['site_title']) ?></title>
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
 	<link rel="stylesheet" href="/assets/style/style.css">
 </head>
@@ -24,6 +24,7 @@ $projects = $db->query("SELECT * FROM projects ORDER BY created_at DESC")->fetch
         <h3>Create New Project</h3>
         <form action="api.php" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="action" value="new_project">
+            <?= csrf_field() ?>
             <input type="text" name="title" placeholder="Project Title" required><br />
 			<input type="text" name="artistname" placeholder="Artist Name" required>
             <p><input class="btn btn-alt" type="file" name="audio_file" accept="audio/*" required></p>
@@ -62,6 +63,7 @@ $projects = $db->query("SELECT * FROM projects ORDER BY created_at DESC")->fetch
 							
 							<form action="api.php" method="POST" style="margin:0;" onsubmit="return confirm('Erase this project?');">
 								<input type="hidden" name="action" value="delete_project">
+								<?= csrf_field() ?>
 								<input type="hidden" name="project_id" value="<?= $p['id'] ?>">
 								<button type="submit" class="btn btn-sm btn-danger">🗑️ Delete</button>
 							</form>
@@ -69,8 +71,8 @@ $projects = $db->query("SELECT * FROM projects ORDER BY created_at DESC")->fetch
 							<div style="margin-left: 20px;">
 								<form action="api.php" method="POST" style="display:inline;">
 									<input type="hidden" name="action" value="toggle_privacy">
+									<?= csrf_field() ?>
 									<input type="hidden" name="project_id" value="<?= $p['id'] ?>">
-									<input type="hidden" name="current_status" value="<?= $p['is_public'] ?>">
 									Project Visiblity: <button type="submit" class="btn btn-sm btn-alt">
 										<?= $p['is_public'] ? 'Public' : 'Private' ?>
 									</button>
@@ -105,7 +107,7 @@ $projects = $db->query("SELECT * FROM projects ORDER BY created_at DESC")->fetch
 			You will have the option to edit any notes, download status, and visibility for each.</span>
 		</div>
 		</div>
-		<?
+		<?php
 		}
 	
 	?>

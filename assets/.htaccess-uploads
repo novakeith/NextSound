@@ -1,3 +1,4 @@
+Options -Indexes
 IndexIgnore *
 # /uploads/.htaccess
 <IfModule mod_php.c>

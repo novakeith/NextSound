@@ -42,4 +42,4 @@
 	-- Some site setting defaults
 	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('comments_enabled', '1');
 	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('primary_color', '#3498db');
-	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('db_schema', '1');
+	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('db_schema', '2'); -- keep in sync with DB_SCHEMA_VERSION in config.php
