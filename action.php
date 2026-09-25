@@ -1,6 +1,7 @@
 <?php
 // this file is essentially the non-admin API file - what a non-logged in user can do, it will flow through here. (Eventually)
 require_once('config.php');
+require_once('assets/tracks.php');
 
 $action = $_POST['action'] ?? '';
 
@@ -22,7 +23,8 @@ if ($action === 'add_comment') {
     }
 
     $version_id = (int)($_POST['version_id'] ?? 0);
-    $slug = (string)($_POST['project_slug'] ?? '');
+    $projectSlug = (string)($_POST['project_slug'] ?? '');
+    $playlistSlug = (string)($_POST['playlist_slug'] ?? '');
     $timestamp = max(0, (float)($_POST['timestamp'] ?? 0));
     $author = mb_substr(trim((string)($_POST['author'] ?? '')), 0, 100) ?: 'Anonymous';
     $text = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 5000);
@@ -32,11 +34,9 @@ if ($action === 'add_comment') {
     }
 
     // Look the project up from the db rather than trusting what the browser sent.
-    // Requiring the slug too means you can only comment on tracks you have the share link for.
-    $stmt = $db->prepare("SELECT p.title, p.slug FROM versions v JOIN projects p ON p.id = v.project_id WHERE v.id = ? AND p.slug = ?");
-    $stmt->execute([$version_id, $slug]);
-    $project = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$project) {
+    // Requiring the track's or playlist's slug too means you can only comment on tracks you have a link for.
+    $access = resolveVersionAccess($db, $version_id, $projectSlug, $playlistSlug);
+    if (!$access) {
         jsonResponse(404, ['status' => 'error', 'message' => 'Track not found.']);
     }
 
@@ -53,7 +53,7 @@ if ($action === 'add_comment') {
     $commentId = $db->lastInsertId();
 
 	// send webhook msg
-	sendwebhookNotification($settings['webhook_url'] ?? '', "New comment left on project '" . $project['title'] . "', at URL " . ($settings['site_url'] ?? '') . "/share/" . $project['slug']);
+	sendwebhookNotification($settings['webhook_url'] ?? '', "New comment left on project '" . $access['title'] . "', at URL " . ($settings['site_url'] ?? '') . $access['path']);
 
     // Respond with success so the frontend knows to show it
     jsonResponse(200, ['status' => 'success', 'id' => (int)$commentId]);

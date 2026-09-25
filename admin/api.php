@@ -62,8 +62,8 @@ if ($action === 'new_project') {
             throw new Exception("Could not create upload folder");
         }
 
-        // Move File - named by the random slug, so it's URL-safe and not guessable from the title
-        $filename = $slug . "_v1_" . time() . "." . $ext;
+        // Move File - named with its own random token, so it's URL-safe, not guessable, and doesn't reveal the share link
+        $filename = generateSlug(16) . "_v1." . $ext;
         if (!move_uploaded_file($file['tmp_name'], $projectFolder . $filename)) {
             throw new Exception("Could not save uploaded file");
         }
@@ -88,10 +88,9 @@ if ($action === 'new_version') {
 	$changelog = $_POST['changelog'] ?? ''; // capture 'change log' data
 	$downloads = (($_POST['downloads'] ?? '0') === '1') ? 1 : 0; // 0=no, 1=yes for downloads enabled
 
-	$stmt = $db->prepare("SELECT slug FROM projects WHERE id = ?");
+	$stmt = $db->prepare("SELECT 1 FROM projects WHERE id = ?");
 	$stmt->execute([$projectId]);
-	$slug = $stmt->fetchColumn();
-	if (!$slug) die("Project not found.");
+	if (!$stmt->fetchColumn()) die("Project not found.");
 
 	$ext = validateAudioUpload($file);
 
@@ -107,7 +106,7 @@ if ($action === 'new_version') {
             throw new Exception("Could not create upload folder");
         }
 
-        $filename = $slug . "_v" . $nextVersion . "_" . time() . "." . $ext;
+        $filename = generateSlug(16) . "_v" . $nextVersion . "." . $ext;
         if (!move_uploaded_file($file['tmp_name'], $projectFolder . $filename)) {
             throw new Exception("Could not save uploaded file");
         }
@@ -130,9 +129,21 @@ if ($action === 'new_version') {
 // --- Toggle Privacy of a Project---
 if ($action === 'toggle_privacy') {
     $projectId = (int)$_POST['project_id'];
+    $confirmed = ($_POST['resolve'] ?? '') === 'anyway';
 
-    $stmt = $db->prepare("UPDATE projects SET is_public = CASE is_public WHEN 1 THEN 0 ELSE 1 END WHERE id = ?");
+    $stmt = $db->prepare("SELECT is_public FROM projects WHERE id = ?");
     $stmt->execute([$projectId]);
+    $isPublic = $stmt->fetchColumn();
+    if ($isPublic === false) die("Project not found.");
+
+    // Going private while in public playlists: it stays playable there, so check the admin knows that first
+    if ($isPublic && !$confirmed && PLAYLISTS_ENABLED && publicPlaylistsContaining($db, $projectId)) {
+        header("Location: index.php?confirm_private=" . $projectId);
+        exit;
+    }
+
+    $stmt = $db->prepare("UPDATE projects SET is_public = ? WHERE id = ?");
+    $stmt->execute([$isPublic ? 0 : 1, $projectId]);
     header("Location: index.php");
     exit;
 }
@@ -292,6 +303,162 @@ if ($action === 'db_update') {
 
 	header("Location: settings.php?success=DBUpdated");
 	exit;
+}
+
+// ==========================================================
+// Playlists
+// ==========================================================
+if (str_contains($action, 'playlist') && !PLAYLISTS_ENABLED) {
+    die("Playlists need a database update first - run it from the Settings page.");
+}
+
+// --- Create a playlist ---
+if ($action === 'new_playlist') {
+    $title = trim($_POST['title'] ?? '') ?: 'Untitled Playlist';
+    $description = $_POST['description'] ?? '';
+
+    $stmt = $db->prepare("INSERT INTO playlists (title, slug, description) VALUES (?, ?, ?)");
+    $stmt->execute([$title, generateSlug(), $description]);
+    header("Location: playlist_edit.php?id=" . $db->lastInsertId());
+    exit;
+}
+
+// --- Edit playlist title/description ---
+if ($action === 'update_playlist') {
+    $playlistId = (int)$_POST['playlist_id'];
+    $title = trim($_POST['title'] ?? '') ?: 'Untitled Playlist';
+
+    $stmt = $db->prepare("UPDATE playlists SET title = ?, description = ? WHERE id = ?");
+    $stmt->execute([$title, $_POST['description'] ?? '', $playlistId]);
+    header("Location: playlist_edit.php?id=$playlistId&success=Saved");
+    exit;
+}
+
+// --- Delete a playlist (the tracks themselves are untouched) ---
+if ($action === 'delete_playlist') {
+    $stmt = $db->prepare("DELETE FROM playlists WHERE id = ?");
+    $stmt->execute([(int)$_POST['playlist_id']]);
+    header("Location: playlists.php?success=Deleted");
+    exit;
+}
+
+// --- Toggle Privacy of a Playlist ---
+// resolve: '' (ask first if needed) | 'anyway' | 'make_tracks_public'
+if ($action === 'toggle_playlist_privacy') {
+    $playlistId = (int)$_POST['playlist_id'];
+    $resolve = $_POST['resolve'] ?? '';
+    $return = ($_POST['return'] ?? '') === 'edit' ? "playlist_edit.php?id=$playlistId" : "playlists.php";
+
+    $stmt = $db->prepare("SELECT is_public FROM playlists WHERE id = ?");
+    $stmt->execute([$playlistId]);
+    $isPublic = $stmt->fetchColumn();
+    if ($isPublic === false) die("Playlist not found.");
+
+    // Going public with private tracks inside: check the admin knows they'll be playable from the home page
+    if (!$isPublic && $resolve === '' && playlistPrivateTracks($db, $playlistId)) {
+        header("Location: playlist_edit.php?id=$playlistId&confirm=public&return=" . (($_POST['return'] ?? '') === 'edit' ? 'edit' : 'list'));
+        exit;
+    }
+
+    $db->beginTransaction();
+    if (!$isPublic && $resolve === 'make_tracks_public') {
+        $stmt = $db->prepare("UPDATE projects SET is_public = 1 WHERE id IN (SELECT project_id FROM playlist_items WHERE playlist_id = ?)");
+        $stmt->execute([$playlistId]);
+    }
+    $stmt = $db->prepare("UPDATE playlists SET is_public = ? WHERE id = ?");
+    $stmt->execute([$isPublic ? 0 : 1, $playlistId]);
+    $db->commit();
+
+    header("Location: $return");
+    exit;
+}
+
+// --- Add a track to a playlist ---
+// version_id: '' = follow the project's current version, or a version id to pin
+// resolve: '' (ask first if needed) | 'anyway' | 'make_track_public' | 'make_playlist_private'
+if ($action === 'add_playlist_item') {
+    $playlistId = (int)$_POST['playlist_id'];
+    $projectId = (int)$_POST['project_id'];
+    $versionId = ($_POST['version_id'] ?? '') === '' ? null : (int)$_POST['version_id'];
+    $resolve = $_POST['resolve'] ?? '';
+
+    $stmt = $db->prepare("SELECT is_public FROM playlists WHERE id = ?");
+    $stmt->execute([$playlistId]);
+    $playlistPublic = $stmt->fetchColumn();
+    $stmt = $db->prepare("SELECT is_public FROM projects WHERE id = ?");
+    $stmt->execute([$projectId]);
+    $projectPublic = $stmt->fetchColumn();
+    if ($playlistPublic === false || $projectPublic === false) die("Playlist or project not found.");
+
+    if ($versionId !== null) {
+        $stmt = $db->prepare("SELECT 1 FROM versions WHERE id = ? AND project_id = ?");
+        $stmt->execute([$versionId, $projectId]);
+        if (!$stmt->fetchColumn()) die("That version doesn't belong to this project.");
+    }
+
+    // A private track going into a public playlist: check with the admin first
+    if ($playlistPublic && !$projectPublic && $resolve === '') {
+        header("Location: playlist_edit.php?id=$playlistId&confirm=add&project_id=$projectId&version_id=" . ($versionId ?? ''));
+        exit;
+    }
+
+    $db->beginTransaction();
+    if ($resolve === 'make_track_public') {
+        $db->prepare("UPDATE projects SET is_public = 1 WHERE id = ?")->execute([$projectId]);
+    } elseif ($resolve === 'make_playlist_private') {
+        $db->prepare("UPDATE playlists SET is_public = 0 WHERE id = ?")->execute([$playlistId]);
+    }
+    $stmt = $db->prepare("INSERT INTO playlist_items (playlist_id, project_id, version_id, position)
+                          VALUES (?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM playlist_items WHERE playlist_id = ?))");
+    $stmt->execute([$playlistId, $projectId, $versionId, $playlistId]);
+    $db->commit();
+
+    header("Location: playlist_edit.php?id=$playlistId#tracks");
+    exit;
+}
+
+// the remaining actions work on one playlist item
+if (in_array($action, ['remove_playlist_item', 'move_playlist_item', 'set_playlist_item_version'], true)) {
+    $stmt = $db->prepare("SELECT * FROM playlist_items WHERE id = ?");
+    $stmt->execute([(int)$_POST['item_id']]);
+    $item = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$item) die("Playlist item not found.");
+    $back = "Location: playlist_edit.php?id=" . $item['playlist_id'] . "#tracks";
+
+    // --- Remove a track from a playlist ---
+    if ($action === 'remove_playlist_item') {
+        $db->prepare("DELETE FROM playlist_items WHERE id = ?")->execute([$item['id']]);
+    }
+
+    // --- Move a track up/down by swapping places with its neighbour ---
+    if ($action === 'move_playlist_item') {
+        $up = ($_POST['dir'] ?? '') === 'up';
+        $stmt = $db->prepare("SELECT id, position FROM playlist_items WHERE playlist_id = ? AND position " . ($up ? '<' : '>') . " ?
+                              ORDER BY position " . ($up ? 'DESC' : 'ASC') . " LIMIT 1");
+        $stmt->execute([$item['playlist_id'], $item['position']]);
+        $neighbour = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($neighbour) {
+            $db->beginTransaction();
+            $swap = $db->prepare("UPDATE playlist_items SET position = ? WHERE id = ?");
+            $swap->execute([$neighbour['position'], $item['id']]);
+            $swap->execute([$item['position'], $neighbour['id']]);
+            $db->commit();
+        }
+    }
+
+    // --- Pin an item to a version, or set it back to following the latest ('') ---
+    if ($action === 'set_playlist_item_version') {
+        $versionId = ($_POST['version_id'] ?? '') === '' ? null : (int)$_POST['version_id'];
+        if ($versionId !== null) {
+            $stmt = $db->prepare("SELECT 1 FROM versions WHERE id = ? AND project_id = ?");
+            $stmt->execute([$versionId, $item['project_id']]);
+            if (!$stmt->fetchColumn()) die("That version doesn't belong to this project.");
+        }
+        $db->prepare("UPDATE playlist_items SET version_id = ? WHERE id = ?")->execute([$versionId, $item['id']]);
+    }
+
+    header($back);
+    exit;
 }
 
 http_response_code(400);

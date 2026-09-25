@@ -19,6 +19,24 @@ function columnExists($db, $table, $column){
 	return FALSE;
 }
 
+// ---- playlist helpers (admin side) ----
+
+// Distinct private (unlisted) projects in a playlist: [[id, title], ...]
+function playlistPrivateTracks($db, $playlistId){
+	$stmt = $db->prepare("SELECT DISTINCT p.id, p.title FROM playlist_items pi JOIN projects p ON p.id = pi.project_id
+						  WHERE pi.playlist_id = ? AND p.is_public = 0 ORDER BY p.title");
+	$stmt->execute([$playlistId]);
+	return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// Public playlists that include a project: [[id, title], ...]
+function publicPlaylistsContaining($db, $projectId){
+	$stmt = $db->prepare("SELECT DISTINCT pl.id, pl.title FROM playlist_items pi JOIN playlists pl ON pl.id = pi.playlist_id
+						  WHERE pi.project_id = ? AND pl.is_public = 1 ORDER BY pl.title");
+	$stmt->execute([$projectId]);
+	return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
 function runDBmigration($schema, $db){
 	$schema = (int)$schema;
 
@@ -35,6 +53,30 @@ function runDBmigration($schema, $db){
 			}
 			// since users will be updating from v1, they wont have original filenames in the database; this will give them something at least
 			$db->exec("UPDATE versions SET origfilename = filename WHERE origfilename = ''");
+		}
+
+		// Migrate from v2 to v3: playlists
+		if ($schema < 3)
+		{
+			$db->exec("CREATE TABLE IF NOT EXISTS playlists (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				title TEXT NOT NULL,
+				slug TEXT UNIQUE NOT NULL,
+				description TEXT,
+				is_public INTEGER DEFAULT 0,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)");
+			$db->exec("CREATE TABLE IF NOT EXISTS playlist_items (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				playlist_id INTEGER NOT NULL,
+				project_id INTEGER NOT NULL,
+				version_id INTEGER,
+				position INTEGER NOT NULL,
+				FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
+				FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+				FOREIGN KEY(version_id) REFERENCES versions(id) ON DELETE CASCADE
+			)");
+			$db->exec("CREATE INDEX IF NOT EXISTS idx_playlist_items_playlist ON playlist_items(playlist_id, position)");
 		}
 
 		// record the new schema version - do this last in case previous statements fail

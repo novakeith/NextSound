@@ -1,8 +1,17 @@
 <?php
 require_once('../config.php');
+require_once('../assets/func.php');
 if (!isAdmin()) { header("Location: login.php"); exit; }
 
-$projects = $db->query("SELECT * FROM projects ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+$playlistCountSql = PLAYLISTS_ENABLED ? "(SELECT COUNT(DISTINCT playlist_id) FROM playlist_items pi WHERE pi.project_id = projects.id)" : "0";
+$projects = $db->query("SELECT *, $playlistCountSql AS playlist_count FROM projects ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+
+// making a track private that's in public playlists bounces back here to confirm
+$confirmPrivate = null;
+if (isset($_GET['confirm_private']) && PLAYLISTS_ENABLED) {
+	foreach ($projects as $p) { if ($p['id'] == $_GET['confirm_private']) $confirmPrivate = $p; }
+	$confirmPlaylists = $confirmPrivate ? publicPlaylistsContaining($db, $confirmPrivate['id']) : [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -19,6 +28,22 @@ $projects = $db->query("SELECT * FROM projects ORDER BY created_at DESC")->fetch
 	
 	<div class="main-content">
     <h1>Admin Panel</h1>
+
+	<?php if ($confirmPrivate && $confirmPlaylists): ?>
+		<!-- Warning: making a track private that's in public playlists --!>
+		<div class="card warning-card">
+			<strong>"<?= h($confirmPrivate['title']) ?>" is in <?= count($confirmPlaylists) ?> public playlist<?= count($confirmPlaylists) == 1 ? '' : 's' ?>:</strong>
+			<?= h(implode(', ', array_column($confirmPlaylists, 'title'))) ?>
+			<p>Making it private removes it from the home page, but it will still be playable from <?= count($confirmPlaylists) == 1 ? 'that playlist' : 'those playlists' ?>.</p>
+			<form action="api.php" method="POST" class="button-group">
+				<input type="hidden" name="action" value="toggle_privacy">
+				<?= csrf_field() ?>
+				<input type="hidden" name="project_id" value="<?= $confirmPrivate['id'] ?>">
+				<button type="submit" name="resolve" value="anyway" class="btn btn-sm">Make private anyway</button>
+				<a href="index.php" class="btn btn-sm btn-alt">Cancel</a>
+			</form>
+		</div>
+	<?php endif; ?>
 
     <div class="card">
         <h3>Create New Project</h3>
@@ -61,7 +86,7 @@ $projects = $db->query("SELECT * FROM projects ORDER BY created_at DESC")->fetch
 						<div style="display: flex; gap: 10px; align-items: center; margin-left: 20px;">
 							<a href="edit.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-alt">✏️ Edit</a>
 							
-							<form action="api.php" method="POST" style="margin:0;" onsubmit="return confirm('Erase this project?');">
+							<form action="api.php" method="POST" style="margin:0;" onsubmit="return confirm(<?= h(json_encode('Erase this project?' . ($p['playlist_count'] > 0 ? ' It will also be removed from ' . $p['playlist_count'] . ' playlist' . ($p['playlist_count'] == 1 ? '' : 's') . '.' : ''))) ?>);">
 								<input type="hidden" name="action" value="delete_project">
 								<?= csrf_field() ?>
 								<input type="hidden" name="project_id" value="<?= $p['id'] ?>">

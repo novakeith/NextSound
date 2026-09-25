@@ -22,12 +22,14 @@ As of 3/9/26, you can:
 - use admin account to delete user comments
 - comments can be disabled site-wide. They will still appear for the admin though, so you can use this as a 'note to self' thing on tracks while still sharing the track with other people.
 - allow tracks to be marked for download
+- group tracks into playlists that play straight through, loading each track's comments as it plays
+  - a playlist entry follows the project's latest version by default, or can be pinned to a specific version (so you can build 'before/after' playlists)
+  - public/private only controls what's listed on the home page; a playlist link plays every track in it, and the admin is warned when that would expose a private track
 
 ## What will it do eventually?
 I want to at some point add:
 
 - let users edit/delete their own comments
-- group songs into a playlist (the idea is the admin/musician can create an album that can be linked to so it plays in order for listeners)
 - re-work the UI to be nicer looking
   - For example, with a lot of tracks, the admin UI is going to be unwieldy. 
 - light mode / dark mode AND/OR allow admins to create custom themes from a dashboard (I have rudimentary color picking for some buttons right now)

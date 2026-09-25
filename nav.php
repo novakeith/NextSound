@@ -10,6 +10,7 @@
         <div>
             <?php if (isAdmin()): ?>
                 <a href="/admin/" class="navlink">Dashboard</a> | 
+				<a href="/admin/playlists.php" class="navlink">Playlists</a> | 
 				<a href="/admin/settings.php" class="navlink">Settings</a> | 
 				<a href="/admin/login.php?logout=true" class="navlink">Logout</a>
             <?php else: ?>

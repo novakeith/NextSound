@@ -293,4 +293,89 @@
 		.hr {
 		border: 0.5px solid #333; 
 		margin: 2rem 0;
-		}*/
+		}
+
+		/* Player / playlists */
+		[hidden] { display: none !important; }
+
+		.multiline { white-space: pre-line; }
+
+		.track-artist {
+			color: #888;
+			margin-bottom: 10px;
+		}
+
+		.playlist-label {
+			color: var(--primary);
+			font-size: 0.8rem;
+			font-weight: bold;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			margin-bottom: 8px;
+		}
+
+		.tracklist {
+			list-style: none;
+			padding: 0;
+			margin: 0;
+			counter-reset: track;
+		}
+
+		.tracklist-item {
+			counter-increment: track;
+			display: flex;
+			gap: 12px;
+			align-items: baseline;
+			padding: 10px 15px;
+			border-radius: 6px;
+			cursor: pointer;
+			border-left: 4px solid transparent;
+		}
+
+		.tracklist-item::before {
+			content: counter(track);
+			color: #666;
+			min-width: 1.5em;
+			text-align: right;
+		}
+
+		.tracklist-item:hover { background: #222; }
+		.tracklist-item.active { background: #1e1e1e; border-left-color: var(--primary); }
+		.tracklist-item.active .tracklist-title { color: var(--primary); }
+
+		.tracklist-title { font-weight: bold; }
+		.tracklist-artist { color: #888; flex-grow: 1; }
+		.tracklist-meta { color: #666; font-size: 0.8rem; }
+
+		/* Admin: warnings & playlist editing */
+		.warning-card {
+			border-color: #BD8235;
+			border-left: 4px solid #BD8235;
+		}
+
+		.warning-card p { color: #aaa; }
+
+		.notice-inline {
+			color: #BD8235;
+			font-size: 0.8rem;
+			margin-top: 4px;
+		}
+
+		.private-badge {
+			font-size: 0.7rem;
+			color: #BD8235;
+			border: 1px solid #BD8235;
+			border-radius: 4px;
+			padding: 1px 6px;
+			margin-left: 8px;
+		}
+
+		.playlist-item-row { gap: 10px; flex-wrap: wrap; }
+
+		.copy-link {
+			cursor: pointer;
+			font-size: 0.8em;
+			margin-left: 10px;
+		}
+
+		button:disabled { opacity: 0.3; cursor: default; }

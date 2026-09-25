@@ -9,7 +9,9 @@ $p = $project->fetch(PDO::FETCH_ASSOC);
 
 if (!$p) die("Project not found.");
 
-$versions = $db->prepare("SELECT * FROM versions WHERE project_id = ? ORDER BY version_number DESC");
+// how many playlist items are pinned to each version (they get removed along with the version)
+$pinnedSql = PLAYLISTS_ENABLED ? "(SELECT COUNT(*) FROM playlist_items pi WHERE pi.version_id = versions.id)" : "0";
+$versions = $db->prepare("SELECT *, $pinnedSql AS pinned_count FROM versions WHERE project_id = ? ORDER BY version_number DESC");
 $versions->execute([$id]);
 $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -67,7 +69,7 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
 				</div>
 
 				<div style="padding: 1px;">
-					<button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete(<?= $v['id'] ?>)">
+					<button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete(<?= $v['id'] ?>, <?= (int)$v['pinned_count'] ?>)">
 						🗑️ Delete
 					</button>
 
@@ -131,8 +133,10 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
 			});
 		});
 		
-		function confirmDelete(versionId) {
-			if (confirm('Delete this version and its file?')) {
+		function confirmDelete(versionId, pinnedCount) {
+			let msg = 'Delete this version and its file?';
+			if (pinnedCount > 0) msg += `\n\nThis version is pinned in ${pinnedCount} playlist spot${pinnedCount === 1 ? '' : 's'} - ${pinnedCount === 1 ? 'it' : 'they'} will be removed from those playlists.`;
+			if (confirm(msg)) {
 				document.getElementById('delete-version-id').value = versionId;
 				document.getElementById('delete-helper-form').submit();
 			}

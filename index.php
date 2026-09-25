@@ -1,10 +1,10 @@
 <?php
 require_once('config.php');
+require_once('assets/tracks.php');
 
 $slug = $_GET['slug'] ?? null;
 $project = null;
 $activeVersion = null;
-$comments = [];
 
 // Route to project using a version ID (vid) if specified
 $vid = isset($_GET['vid']) ? (int)$_GET['vid'] : null;
@@ -19,26 +19,25 @@ if ($slug) {
             // Load specific version
             $stmt = $db->prepare("SELECT * FROM versions WHERE id = ? AND project_id = ?");
             $stmt->execute([$vid, $project['id']]);
+            $activeVersion = $stmt->fetch(PDO::FETCH_ASSOC);
         } else {
-            // Load default active version (falling back to the newest, in case nothing is marked active)
-            $stmt = $db->prepare("SELECT * FROM versions WHERE project_id = ? ORDER BY is_active DESC, version_number DESC LIMIT 1");
-            $stmt->execute([$project['id']]);
-        }
-        $activeVersion = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($activeVersion) {
-            // Fetch comments for this version
-            $stmt = $db->prepare("SELECT * FROM comments WHERE version_id = ? ORDER BY timestamp ASC");
-            $stmt->execute([$activeVersion['id']]);
-            $comments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Load default active version
+            $activeVersion = getCurrentVersion($db, $project['id']);
         }
     }
 }
 
-// Not directly linked? display all public projects.
+// Not directly linked? display all public playlists & projects.
 if (!$project && !$slug) {
     $stmt = $db->query("SELECT * FROM projects WHERE is_public = 1 ORDER BY created_at DESC");
     $publicProjects = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $publicPlaylists = [];
+    if (PLAYLISTS_ENABLED) {
+        $stmt = $db->query("SELECT pl.*, (SELECT COUNT(*) FROM playlist_items pi WHERE pi.playlist_id = pl.id) AS track_count
+                            FROM playlists pl WHERE pl.is_public = 1 ORDER BY pl.created_at DESC");
+        $publicPlaylists = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
 
 // Fetch ALL versions for a project
@@ -70,96 +69,13 @@ if ($project) {
 <div class="main-content">
     <div class="container">
         <?php if ($project && $activeVersion): ?>
-            <div class="player-card">
-				<h1 style="margin-top: 0; margin-bottom: 5px;"><?= htmlspecialchars($project['title']) ?></h1>
-				
-				<?php if (!empty($project['notes']) || $activeVersion['allow_download']): ?>
-					<div class="project-notes">
-						<?= nl2br(h($project['notes'])) ?>
-						<span style="font-size:0.7rem; display: block;"><?php if ($activeVersion['allow_download']): ?><a class="dl-link" href="/download.php?id=<?= $activeVersion['id'] ?>&amp;s=<?= h($project['slug']) ?>"><i>Download</i></a> <?php endif; ?></span>
-					</div>
-				<?php endif; ?>
-				
-				<div class="changelog-box">
-					<span class="version-badge">Version <?= $activeVersion['version_number'] ?> Notes:</span>
-					<span style="color: #fff;">
-						<?= !empty($activeVersion['changelog']) ? htmlspecialchars($activeVersion['changelog']) : "No change notes for this mix." ?>
-					</span>
-				</div>
-
-				<div id="waveform"></div>
-				
-				<div class="controls">
-					<button class="btn" id="playPause">Play / Pause</button>
-					<span id="currentTime">0:00</span> / <span id="duration">0:00</span>
-				</div>
-			</div>
-			
-			<?php 
-				// Allow comment form & comment display if enabled in site settings;
-				// Admins are always allowed to view comments + the form.
-				if (($settings['comments_enabled'] == '1') || ($settings['comments_enabled'] == '0' && isAdmin())): 
+			<?php
+				// a single track is just a playlist of one
+				$playerTracks = [buildTrack($db, $project, $activeVersion, 's=' . rawurlencode($project['slug']), commentsVisible($settings))];
+				$playerContext = ['type' => 'track', 'slug' => $project['slug']];
+				include('assets/player.php');
 			?>
-			
-			<!-- Comment Form --!>
-			<div class="player-card">
-                <h4 style="margin-top: 0;">Leave feedback at <span id="commentTime" style="color: var(--primary);">0:00</span></h4>
-                <form id="commentForm" style="display: flex; gap: 10px;">
-                    <input type="hidden" id="timestampInput" name="timestamp" value="0">
-                    <input type="text" id="authorInput" placeholder="Your Name" style="width: 25%;">
-                    <input type="text" id="textInput" placeholder="Feedback... (click to lock time)" style="flex-grow: 1;" required>
-                    <button type="submit" class="btn">Post</button>
-                </form>
-            </div>
 
-			<!-- Comment display --!>
-				<div class="comment-section">
-					<h3>Comments</h3>
-					<div id="commentList">
-						<?php if (empty($comments)): ?>
-							<p style="color: #777;">No comments yet. Be the first to ruin the mix.</p>
-						<?php endif; ?>
-
-						<?php foreach ($comments as $c): ?>
-							<div class="comment" id="comment-container-<?= $c['id']?>">
-								<span class="timestamp" onclick="seekTo(<?= $c['timestamp'] ?>)">
-									<?= sprintf('%d:%02d', floor($c['timestamp'] / 60), (int)floor($c['timestamp']) % 60) ?>
-								</span>
-								<strong><?= htmlspecialchars($c['author_name'] ?: 'Anonymous') ?>:</strong>
-								<?= htmlspecialchars($c['text']) ?>
-
-								<?php if (isAdmin()): ?>
-									<div class="admin-controls">
-										<button class="triage-btn" data-id="<?= $c['id'] ?>" data-status="accepted">👍</button>
-										<button class="triage-btn" data-id="<?= $c['id'] ?>" data-status="rejected">👎</button>									
-										<span id="status-msg-<?= $c['id'] ?>" class="status-badge"></span>
-										<button class="delete-comment-btn" data-id="<?= $c['id'] ?>" style="background: #442222; border: 1px solid #663333;">🗑️</button>
-									</div>
-								<?php endif; ?>
-								
-								<?php if ($c['status'] !== 'pending'): ?>
-									<span class="status-badge <?= h($c['status']) ?>">
-										<?= $c['status'] === 'accepted' ? '✅ Resolved' : '❌ Declined' ?>
-									</span>
-								<?php endif; ?>
-							</div>
-						<?php endforeach; ?>
-					</div>
-				</div>
-				
-				<?php if ($settings['comments_enabled'] == '0' && isAdmin()): ?>
-					<div class="comment-section">
-						<p style="text-align:center; color:#666; font-size: 0.8rem;">Comments are currently disabled (& invisible) for non-admin users. <br />
-						As an admin, you can still view historical comments or leave them for yourself.</p>
-					</div>
-				<?php endif; ?>
-				
-			<?php else: ?>
-				<div class="comment-section">
-					<p style="text-align:center; color:#666;">Comments are currently closed for this site.</p>
-				</div>
-			<?php endif; ?>
-			
 			<!-- Version selection --!>
 			<?php if (count($allVersions) > 1): ?>
 				<div class="comment-section">
@@ -169,7 +85,7 @@ if ($project) {
 							<div class="version-row <?= ($v['id'] == $activeVersion['id']) ? 'active' : '' ?>">
 								<span><strong>Version <?= $v['version_number'] ?></strong></span>
 								<small><?= date('M j, Y', strtotime($v['created_at'])) ?></small>
-								
+
 								<?php if ($v['id'] != $activeVersion['id']): ?>
 									<a href="?slug=<?= h($project['slug']) ?>&amp;vid=<?= $v['id'] ?>" class="btn-sm">Switch</a>
 								<?php else: ?>
@@ -182,19 +98,31 @@ if ($project) {
 			<?php endif; ?>
 
         <?php elseif (!$slug): ?>
+			<?php if (!empty($publicPlaylists)): ?>
+				<h2>Playlists</h2>
+				<?php foreach ($publicPlaylists as $pl): ?>
+					<div class="player-card" style="padding: 20px; margin-bottom: 10px;">
+						<a href="/playlist/<?= h($pl['slug']) ?>" style="color: var(--primary); text-decoration: none; font-size: 1.2rem; font-weight: bold;">
+							<?= h($pl['title']) ?>
+						</a>
+						<small style="color: #777; margin-left: 10px;"><?= (int)$pl['track_count'] ?> track<?= $pl['track_count'] == 1 ? '' : 's' ?></small>
+					</div>
+				<?php endforeach; ?>
+			<?php endif; ?>
+
             <h2>Public Tracks</h2>
             <?php if (empty($publicProjects)): ?>
                 <p style="color: #777;">No public tracks right now.</p>
             <?php endif; ?>
-            
+
             <?php foreach ($publicProjects as $p): ?>
-                <div class="player-card" style="padding: 20px;">
+                <div class="player-card" style="padding: 20px; margin-bottom: 10px;">
                     <a href="/share/<?= h($p['slug']) ?>" style="color: var(--primary); text-decoration: none; font-size: 1.2rem; font-weight: bold;">
                         <?= h($p['title']) ?>
                     </a>
                 </div>
             <?php endforeach; ?>
-			
+
         <?php else: ?>
             <div class="player-card" style="text-align: center;">
                 <h2>404</h2>
@@ -205,173 +133,7 @@ if ($project) {
     </div>
 </div>
 
-    <script>
-        <?php if ($activeVersion): ?>
-        // Values from PHP - json_encode makes them safe to drop into JS (quotes in titles etc.)
-        const VERSION_ID = <?= json_encode((int)$activeVersion['id']) ?>;
-        const PROJECT_SLUG = <?= json_encode($project['slug']) ?>;
-        const AUDIO_URL = <?= json_encode('/uploads/' . (int)$project['id'] . '/' . rawurlencode($activeVersion['filename'])) ?>;
-        const CSRF_TOKEN = <?= json_encode(isAdmin() ? csrf_token() : '') ?>;
-
-        // Initialize WaveSurfer
-        const wavesurfer = WaveSurfer.create({
-            container: '#waveform',
-            waveColor: '#555',
-            progressColor: '#3498db',
-            cursorColor: '#fff',
-            barWidth: 2,
-            height: 128,
-            url: AUDIO_URL
-        });
-
-        // Controls
-        const playBtn = document.getElementById('playPause');
-        playBtn.onclick = () => wavesurfer.playPause();
-
-        // Update Time
-        wavesurfer.on('audioprocess', () => {
-            document.getElementById('currentTime').innerText = formatTime(wavesurfer.getCurrentTime());
-        });
-
-        wavesurfer.on('ready', () => {
-            document.getElementById('duration').innerText = formatTime(wavesurfer.getDuration());
-        });
-
-        function formatTime(s) {
-            const min = Math.floor(s / 60);
-            const sec = Math.floor(s % 60);
-            return `${min}:${sec < 10 ? '0' : ''}${sec}`;
-        }
-
-        function seekTo(seconds) {
-            wavesurfer.setTime(seconds);
-            wavesurfer.play();
-        }
-
-        // Comment Form Logic
-        const textInput = document.getElementById('textInput');
-        const commentTimeDisplay = document.getElementById('commentTime');
-        const timestampInput = document.getElementById('timestampInput');
-
-        // (the form isn't on the page when comments are disabled, so only wire it up if it exists)
-        const commentForm = document.getElementById('commentForm');
-
-        // Lock in time when clicking the input
-        if (commentForm) textInput.onfocus = () => {
-            const now = wavesurfer.getCurrentTime();
-            timestampInput.value = now;
-            commentTimeDisplay.innerText = formatTime(now);
-        };
-
-        // Submit comment form
-        if (commentForm) commentForm.onsubmit = async (e) => {
-			e.preventDefault();
-			
-			const timestamp = timestampInput.value;
-			const author = document.getElementById('authorInput').value || 'Anonymous';
-			const text = textInput.value;
-
-			const formData = new FormData();
-			formData.append('action', 'add_comment');
-			formData.append('version_id', VERSION_ID);
-			formData.append('timestamp', timestamp);
-			formData.append('author', author);
-			formData.append('text', text);
-			formData.append('project_slug', PROJECT_SLUG);
-
-			const response = await fetch("/action.php", {
-				method: 'POST',
-				body: formData
-			});
-
-			if (response.ok) {
-				// Clear the input
-				textInput.value = '';
-
-				// Manually build and prepend the comment to the list.
-				// Built with textContent (not innerHTML) so whatever someone types is shown as plain text.
-				const list = document.getElementById('commentList');
-				const newComment = document.createElement('div');
-				newComment.className = 'comment';
-
-				const timeSpan = document.createElement('span');
-				timeSpan.className = 'timestamp';
-				timeSpan.textContent = formatTime(timestamp);
-				timeSpan.onclick = () => seekTo(parseFloat(timestamp));
-
-				const authorEl = document.createElement('strong');
-				authorEl.textContent = author + ':';
-
-				newComment.append(timeSpan, ' ', authorEl, ' ', text);
-
-				// Add to top of list (or use appendChild for bottom)
-				list.prepend(newComment);
-
-				// Remove the "No comments yet" message if it exists
-				if(list.querySelector('p')) list.querySelector('p').remove();
-			} else {
-				const err = await response.json().catch(() => ({}));
-				alert(err.message || 'Could not post comment.');
-			}
-		};
-	
-		document.querySelectorAll('.triage-btn').forEach(button => {
-			button.addEventListener('click', function() {
-				const commentId = this.dataset.id;
-				const newStatus = this.dataset.status;
-				const statusMsg = document.getElementById('status-msg-' + commentId);
-
-				statusMsg.innerText = "Updating...";
-
-				// Send the request to api.php in the background
-				fetch('/admin/api.php', {
-					method: 'POST',
-					body: new URLSearchParams({ action: 'set_comment_status', comment_id: commentId, status: newStatus, csrf_token: CSRF_TOKEN })
-				})
-				.then(response => {
-					if (response.ok) {
-						statusMsg.innerText = (newStatus === 'accepted') ? "Marked as Resolved ✅ " : "Marked as Declined ❌ ";
-						// Optional: Dim the comment if rejected
-						if(newStatus === 'rejected') {
-							this.closest('.comment').style.opacity = '0.5';
-						} else {
-							this.closest('.comment').style.opacity = '1';
-						}
-					}
-				})
-				.catch(error => {
-					console.error('Error:', error);
-					statusMsg.innerText = "Error!";
-				});
-			});
-		});
-		
-		document.querySelectorAll('.delete-comment-btn').forEach(button => {
-			button.addEventListener('click', function() {
-				const commentId = this.dataset.id;
-				
-				if (!confirm("Are you sure you want to delete this comment?")) return;
-
-				fetch('/admin/api.php', {
-					method: 'POST',
-					body: new URLSearchParams({ action: 'delete_comment', comment_id: commentId, csrf_token: CSRF_TOKEN })
-				})
-				.then(response => {
-					if (response.ok) {
-						// Smoothly hide and remove the element
-						const container = document.getElementById('comment-container-' + commentId);
-						container.style.transition = "opacity 0.3s, transform 0.3s";
-						container.style.opacity = "0";
-						container.style.transform = "translateX(20px)";
-						setTimeout(() => container.remove(), 300);
-					}
-				});
-			});
-		});
-        <?php endif; ?>
-    </script>
-	
 	<!-- Footer --!>
-    <?php include('footer.php') ?>	
+    <?php include('footer.php') ?>
 </body>
 </html>

@@ -1,20 +1,24 @@
 <?php
 require_once('config.php');
+require_once('assets/tracks.php');
 
 // 1. Validate input
 $versionId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-$slug = (string)($_GET['s'] ?? '');
+$projectSlug = (string)($_GET['s'] ?? '');   // from a track page
+$playlistSlug = (string)($_GET['p'] ?? '');  // from a playlist page
 
 if ($versionId <= 0) {
     die("Invalid file request.");
 }
 
 // 2. Query the database to check if download is allowed.
-// The project slug must match too - otherwise anyone could walk through ?id=1,2,3... and grab private tracks.
-$stmt = $db->prepare("SELECT v.filename, v.origfilename, v.project_id FROM versions v JOIN projects p ON p.id = v.project_id
-                      WHERE v.id = ? AND p.slug = ? AND v.allow_download = 1");
-$stmt->execute([$versionId, $slug]);
-$version = $stmt->fetch(PDO::FETCH_ASSOC);
+// A matching track or playlist slug is required too - otherwise anyone could walk through ?id=1,2,3... and grab private tracks.
+$version = false;
+if (resolveVersionAccess($db, $versionId, $projectSlug, $playlistSlug)) {
+    $stmt = $db->prepare("SELECT filename, origfilename, project_id FROM versions WHERE id = ? AND allow_download = 1");
+    $stmt->execute([$versionId]);
+    $version = $stmt->fetch(PDO::FETCH_ASSOC);
+}
 
 // 3. If file exists and is allowed, serve it
 if ($version) {

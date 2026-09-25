@@ -21,7 +21,7 @@ define('ALLOWED_AUDIO_TYPES', [
 	'audio/ogg' => 'ogg',
 	'audio/flac' => 'flac', 'audio/x-flac' => 'flac',
 ]);
-define('DB_SCHEMA_VERSION', 2); // bump this when adding a migration to assets/func.php
+define('DB_SCHEMA_VERSION', 3); // bump this when adding a migration to assets/func.php (and update schema.sql)
 
 // database connection / creation (if it doesnt exist)
 try {
@@ -45,6 +45,9 @@ try {
 	// Fetch all site settings into an array
 	$stmt = $db->query("SELECT setting_key, setting_value FROM site_settings");
 	$settings = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+	// playlists need db schema v3 - until the admin runs the update from Settings, playlist features stay hidden
+	define('PLAYLISTS_ENABLED', (int)($settings['db_schema'] ?? 1) >= 3);
 } catch (Exception $e) {
     // Log any errors w/ database connection; nothing else on the page can work without the db, so stop here.
     error_log("DB Error: " . $e->getMessage());
