@@ -15,7 +15,7 @@ if ($playlist && $entries) {
 	$withComments = commentsVisible($settings);
 	$access = 'p=' . rawurlencode($playlist['slug']);
 	$playerTracks = array_map(fn($e) => buildTrack($db, $e['project'], $e['version'], $access, $withComments, $e['pinned']), $entries);
-	$playerContext = ['type' => 'playlist', 'slug' => $playlist['slug'], 'title' => $playlist['title']];
+	$playerContext = ['type' => 'playlist', 'slug' => $playlist['slug'], 'title' => $playlist['title'], 'description' => $playlist['description'] ?? ''];
 }
 ?>
 <!DOCTYPE html>
@@ -36,9 +36,6 @@ if ($playlist && $entries) {
 <div class="main-content">
     <div class="container">
 		<?php if ($playlist && $entries): ?>
-			<?php if (!empty($playlist['description'])): ?>
-				<div class="project-notes multiline"><?= h($playlist['description']) ?></div>
-			<?php endif; ?>
 			<?php include('assets/player.php'); ?>
 
 		<?php elseif ($playlist): ?>

@@ -314,6 +314,8 @@
 			margin-bottom: 8px;
 		}
 
+		.playlist-title { margin: 0 0 5px; }
+
 		.tracklist {
 			list-style: none;
 			padding: 0;

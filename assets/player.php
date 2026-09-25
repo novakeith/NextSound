@@ -4,14 +4,12 @@
 //
 // Expects these variables from the including page:
 //   $playerTracks  - array of tracks from buildTrack()
-//   $playerContext - ['type' => 'track'|'playlist', 'slug' => share slug, 'title' => playlist title (playlists only)]
+//   $playerContext - ['type' => 'track'|'playlist', 'slug' => share slug,
+//                     'title' / 'description' => playlist title & description (playlists only)]
 $isPlaylist = $playerContext['type'] === 'playlist';
 $showComments = commentsVisible($settings);
 ?>
 			<div class="player-card">
-				<?php if ($isPlaylist): ?>
-					<div class="playlist-label">Playlist · <?= h($playerContext['title']) ?></div>
-				<?php endif; ?>
 				<h1 id="trackTitle" style="margin-top: 0; margin-bottom: 5px;"></h1>
 				<div id="trackArtist" class="track-artist"></div>
 
@@ -36,9 +34,13 @@ $showComments = commentsVisible($settings);
 			</div>
 
 			<?php if ($isPlaylist): ?>
-				<!-- Tracklist --!>
+				<!-- Playlist info + tracklist (the player above always shows the current track) --!>
 				<div class="comment-section">
-					<h3>Tracklist</h3>
+					<div class="playlist-label">Playlist</div>
+					<h2 class="playlist-title"><?= h($playerContext['title']) ?></h2>
+					<?php if (!empty($playerContext['description'])): ?>
+						<div class="project-notes multiline"><?= h($playerContext['description']) ?></div>
+					<?php endif; ?>
 					<ol id="tracklist" class="tracklist"></ol>
 				</div>
 			<?php endif; ?>
