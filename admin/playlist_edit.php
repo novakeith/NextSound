@@ -44,8 +44,8 @@ $confirmProject = $projectsById[(int)($_GET['project_id'] ?? 0)] ?? null;
     <meta charset="UTF-8">
     <title><?= h($settings['site_title']) ?> | Playlist: <?= h($pl['title']) ?></title>
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
-	<link rel="stylesheet" href="/assets/style/style.css">
-	<script src="/assets/js/sortable.js"></script>
+	<link rel="stylesheet" href="<?= asset('/assets/style/style.css') ?>">
+	<script src="<?= asset('/assets/js/sortable.js') ?>"></script>
 </head>
 <body>
 	<!-- Navigation Bar --!>

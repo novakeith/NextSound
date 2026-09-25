@@ -57,7 +57,7 @@ if ($project) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= h($project ? $project['title'] : $settings['site_title']) ?></title>
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
-	<link rel="stylesheet" href="/assets/style/style.css">
+	<link rel="stylesheet" href="<?= asset('/assets/style/style.css') ?>">
     <script src="https://unpkg.com/wavesurfer.js@7"></script>
 
 </head>

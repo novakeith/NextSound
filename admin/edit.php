@@ -21,7 +21,7 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="UTF-8">
     <title><?= htmlspecialchars($settings['site_title']) ?> | Edit: <?= htmlspecialchars($p['title']) ?></title>
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
-	<link rel="stylesheet" href="/assets/style/style.css">
+	<link rel="stylesheet" href="<?= asset('/assets/style/style.css') ?>">
 </head>
 <body>
 	<!-- Navigation Bar --!>

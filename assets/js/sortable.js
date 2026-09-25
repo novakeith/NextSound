@@ -14,7 +14,6 @@ function makeSortable(container, { item, handle, onEnd }) {
 		if (!dragged || dragged.parentElement !== container) return;
 
 		e.preventDefault();
-		grip.setPointerCapture(e.pointerId);
 		dragged.classList.add('dragging');
 		document.body.classList.add('is-sorting'); // grabbing cursor + no text selection while dragging
 		const startIndex = [...container.children].indexOf(dragged);
@@ -41,20 +40,28 @@ function makeSortable(container, { item, handle, onEnd }) {
 			if (dy) { window.scrollBy(0, dy); reposition(); }
 		};
 
-		const move = (ev) => { lastY = ev.clientY; reposition(); };
-		const end = () => {
-			grip.removeEventListener('pointermove', move);
-			grip.removeEventListener('pointerup', end);
-			grip.removeEventListener('pointercancel', end);
+		// Listen on the whole document, not the handle: moving the row in the DOM detaches the handle for
+		// an instant, and a handle-level listener (or pointer capture) would then miss the button release.
+		const pointerId = e.pointerId;
+		const move = (ev) => { if (ev.pointerId === pointerId) { lastY = ev.clientY; reposition(); } };
+		let finished = false;
+		const end = (ev) => {
+			if (finished || (ev && ev.pointerId !== undefined && ev.pointerId !== pointerId)) return;
+			finished = true;
+			document.removeEventListener('pointermove', move);
+			document.removeEventListener('pointerup', end);
+			document.removeEventListener('pointercancel', end);
+			window.removeEventListener('blur', end);
 			clearInterval(scrollTimer);
 			dragged.classList.remove('dragging');
 			document.body.classList.remove('is-sorting');
 			if ([...container.children].indexOf(dragged) !== startIndex && onEnd) onEnd(dragged);
 		};
 
-		grip.addEventListener('pointermove', move);
-		grip.addEventListener('pointerup', end);
-		grip.addEventListener('pointercancel', end);
+		document.addEventListener('pointermove', move);
+		document.addEventListener('pointerup', end);
+		document.addEventListener('pointercancel', end);
+		window.addEventListener('blur', end); // e.g. alt-tabbing away mid-drag: drop the row where it is
 		scrollTimer = setInterval(autoScroll, 30);
 	});
 }

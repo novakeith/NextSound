@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <title>Settings: <?= htmlspecialchars($settings['site_title']) ?></title>
-	<link rel="stylesheet" href="/assets/style/style.css">
+	<link rel="stylesheet" href="<?= asset('/assets/style/style.css') ?>">
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
 </head>
 

@@ -32,7 +32,7 @@ if (isset($_GET['logout'])) {
 <head>
     <meta charset="UTF-8">
     <title><?= h($settings['site_title']) ?> Login</title>
-	<link rel="stylesheet" href="/assets/style/style.css">
+	<link rel="stylesheet" href="<?= asset('/assets/style/style.css') ?>">
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
 </head>
 <body>

@@ -19,8 +19,8 @@ if (isset($_GET['confirm_private']) && PLAYLISTS_ENABLED) {
     <meta charset="UTF-8">
     <title>Dashboard: <?= h($settings['site_title']) ?></title>
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
-	<link rel="stylesheet" href="/assets/style/style.css">
-	<script src="/assets/js/sortable.js"></script>
+	<link rel="stylesheet" href="<?= asset('/assets/style/style.css') ?>">
+	<script src="<?= asset('/assets/js/sortable.js') ?>"></script>
 </head>
 
 <body>
@@ -168,7 +168,7 @@ if (isset($_GET['confirm_private']) && PLAYLISTS_ENABLED) {
 			'playlistsEnabled' => PLAYLISTS_ENABLED,
 		]) ?>;
 	</script>
-	<script src="/assets/js/bulk-upload.js"></script>
+	<script src="<?= asset('/assets/js/bulk-upload.js') ?>"></script>
 
 	<script>
 		function copyShareLink(slug) {

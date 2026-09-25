@@ -87,4 +87,4 @@ $showComments = commentsVisible($settings);
 					'primaryColor' => $settings['primary_color'] ?? '#3498db',
 				], JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 			</script>
-			<script src="/assets/js/player.js"></script>
+			<script src="<?= asset('/assets/js/player.js') ?>"></script>

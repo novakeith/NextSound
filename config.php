@@ -73,6 +73,13 @@ function param($source, $key) {
 	return is_string($value) ? $value : '';
 }
 
+// URL for a local CSS/JS file with its last-modified time attached (e.g. /assets/style/style.css?v=1790371234),
+// so browsers fetch the new version as soon as the file changes instead of reusing a stale cached copy
+function asset($path) {
+	$mtime = @filemtime(__DIR__ . $path);
+	return $path . ($mtime ? '?v=' . $mtime : '');
+}
+
 // shorthand for escaping anything printed into HTML
 function h($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
