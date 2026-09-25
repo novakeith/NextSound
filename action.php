@@ -3,7 +3,7 @@
 require_once('config.php');
 require_once('assets/tracks.php');
 
-$action = $_POST['action'] ?? '';
+$action = param($_POST, 'action');
 
 // lets turn away nosy nancy's
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !$action){ http_response_code(400); die('Unauthorized'); }
@@ -23,11 +23,11 @@ if ($action === 'add_comment') {
     }
 
     $version_id = (int)($_POST['version_id'] ?? 0);
-    $projectSlug = (string)($_POST['project_slug'] ?? '');
-    $playlistSlug = (string)($_POST['playlist_slug'] ?? '');
+    $projectSlug = param($_POST, 'project_slug');
+    $playlistSlug = param($_POST, 'playlist_slug');
     $timestamp = max(0, (float)($_POST['timestamp'] ?? 0));
-    $author = mb_substr(trim((string)($_POST['author'] ?? '')), 0, 100) ?: 'Anonymous';
-    $text = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 5000);
+    $author = mb_substr(trim(param($_POST, 'author')), 0, 100) ?: 'Anonymous';
+    $text = mb_substr(trim(param($_POST, 'text')), 0, 5000);
 
     if ($text === '') {
         jsonResponse(400, ['status' => 'error', 'message' => 'Comment is empty.']);

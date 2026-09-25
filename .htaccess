@@ -10,3 +10,24 @@ RewriteRule ^share/([a-zA-Z0-9]+)$ index.php?slug=$1 [L,QSA]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^playlist/([a-zA-Z0-9]+)$ playlist.php?slug=$1 [L,QSA]
+
+# --- Security headers (needs mod_headers, enabled in the Dockerfile) ---
+<IfModule mod_headers.c>
+    # Don't let other sites load these pages in a frame (stops clickjacking on admin buttons)
+    Header always set Content-Security-Policy "frame-ancestors 'self'"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    # Browsers must trust the declared file type instead of guessing
+    Header always set X-Content-Type-Options "nosniff"
+    # Share links contain secret slugs - only send the bare site origin to other sites, never the full URL
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# --- Files that should never be served directly ---
+# Setup/config files that ship in the image
+<FilesMatch "\.(sql|sh|ini|md)$|^(LICENSE|Dockerfile)$">
+    Require all denied
+</FilesMatch>
+# PHP files that are only meant to be included by other pages, never opened directly
+<FilesMatch "^(config|nav|footer|func|tracks|player)\.php$">
+    Require all denied
+</FilesMatch>

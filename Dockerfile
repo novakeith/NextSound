@@ -10,8 +10,11 @@ RUN apt-get update && apt-get install -y \
 # Install and configure PHP extensions
 RUN docker-php-ext-install pdo_sqlite
 
-# Enable Apache modules
-RUN a2enmod rewrite
+# Enable Apache modules (headers = security headers set in .htaccess)
+RUN a2enmod rewrite headers
+
+# Don't reveal the Apache/OS version on error pages or in the Server header
+RUN sed -i 's/^ServerTokens .*/ServerTokens Prod/; s/^ServerSignature .*/ServerSignature Off/' /etc/apache2/conf-available/security.conf
 
 # Update Apache config for cleaner URLs
 RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf

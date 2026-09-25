@@ -7,7 +7,7 @@ require_once('assets/tracks.php');
 $playlist = null;
 $entries = [];
 if (PLAYLISTS_ENABLED) {
-	$playlist = getPlaylistBySlug($db, (string)($_GET['slug'] ?? ''));
+	$playlist = getPlaylistBySlug($db, param($_GET, 'slug'));
 	if ($playlist) $entries = getPlaylistEntries($db, $playlist['id']);
 }
 

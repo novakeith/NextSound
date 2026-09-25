@@ -16,6 +16,5 @@ IndexIgnore *
 
 # Fallback: Deny access to any file that ends in .php
 <FilesMatch "\.(php|phtml|php3|php4|php5|phps)$">
-    Order Allow,Deny
-    Deny from all
+    Require all denied
 </FilesMatch>

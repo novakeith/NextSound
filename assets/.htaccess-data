@@ -1,2 +1,2 @@
-Order Deny,Allow
-Deny from all
+# /data/.htaccess - the database lives here; nothing in this folder is ever served
+Require all denied

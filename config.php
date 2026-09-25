@@ -67,6 +67,12 @@ function generateSlug($l = 8) {
 	return $slug;
 }
 
+// Read a request parameter as a string: '' if it's missing, or if someone sent an array (e.g. ?slug[]=x)
+function param($source, $key) {
+	$value = $source[$key] ?? '';
+	return is_string($value) ? $value : '';
+}
+
 // shorthand for escaping anything printed into HTML
 function h($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 

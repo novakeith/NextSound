@@ -4,8 +4,8 @@ require_once('assets/tracks.php');
 
 // 1. Validate input
 $versionId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-$projectSlug = (string)($_GET['s'] ?? '');   // from a track page
-$playlistSlug = (string)($_GET['p'] ?? '');  // from a playlist page
+$projectSlug = param($_GET, 's');   // from a track page
+$playlistSlug = param($_GET, 'p');  // from a playlist page
 
 if ($versionId <= 0) {
     die("Invalid file request.");

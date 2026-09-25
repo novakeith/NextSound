@@ -2,7 +2,7 @@
 require_once('config.php');
 require_once('assets/tracks.php');
 
-$slug = $_GET['slug'] ?? null;
+$slug = param($_GET, 'slug') ?: null;
 $project = null;
 $activeVersion = null;
 
