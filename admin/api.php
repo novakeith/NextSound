@@ -82,6 +82,12 @@ if ($action === 'new_project') {
         $stmt->execute([$projectId, $filename, $file['name'], 1, $changelog, $downloads]);
 
         $db->commit();
+
+        // the bulk uploader sends one combined message for its whole batch instead (see notify_upload_batch)
+        if (($_POST['batch'] ?? '') !== '1') {
+            notifyWebhook($settings, 'track', "New track uploaded: '$title'" . ($artistname !== '' ? " by $artistname" : '') . ", at URL " . siteLink($settings, "/share/$slug"));
+        }
+
         if ($wantsJson) jsonOut(200, ['status' => 'success', 'id' => (int)$projectId, 'slug' => $slug]);
         header("Location: index.php?success=ProjectCreated");
         exit;
@@ -189,33 +195,76 @@ if ($action === 'update_project') {
     }
 }
 
-// --- Delete Project & Files ---
-if ($action === 'delete_project') {
-    $projectId = (int)$_POST['project_id'];
-
-    // Get project info to find the folder
-    $projectFolder = UPLOAD_DIR . $projectId;
+// Deletes a project: its db rows (versions, comments and playlist entries cascade) and then its files.
+// Throws if the db delete fails; files are only removed once the db change has stuck.
+function deleteProject($db, $projectId) {
+    $projectId = (int)$projectId;
+    if ($projectId <= 0) return;
 
     $db->beginTransaction();
     try {
-        // Remove from DB (Cascade will handle versions and comments)
         $stmt = $db->prepare("DELETE FROM projects WHERE id = ?");
         $stmt->execute([$projectId]);
-
-        // Delete files
-        if ($projectId > 0 && is_dir($projectFolder)) {
-            $files = glob($projectFolder . '/*');
-            foreach($files as $file){ if(is_file($file)) unlink($file); }
-            rmdir($projectFolder);
-        }
-
         $db->commit();
-        header("Location: index.php?success=Deleted");
-        exit;
     } catch (Exception $e) {
         $db->rollBack();
+        throw $e;
+    }
+
+    $projectFolder = UPLOAD_DIR . $projectId;
+    if (is_dir($projectFolder)) {
+        foreach (glob($projectFolder . '/*') as $file) { if (is_file($file)) unlink($file); }
+        rmdir($projectFolder);
+    }
+}
+
+// project_ids[] from a bulk form, as ints, in the order they were sent (= the order shown on the dashboard)
+function postedProjectIds() {
+    $ids = is_array($_POST['project_ids'] ?? null) ? $_POST['project_ids'] : [];
+    return array_values(array_unique(array_filter(array_map('intval', $ids))));
+}
+
+// --- Delete Project & Files ---
+if ($action === 'delete_project') {
+    try {
+        deleteProject($db, $_POST['project_id'] ?? 0);
+    } catch (Exception $e) {
         die("Delete Failed: " . h($e->getMessage()));
     }
+    header("Location: index.php?success=Deleted");
+    exit;
+}
+
+// --- One webhook message for a whole bulk upload, sent by the uploader when its batch finishes ---
+if ($action === 'notify_upload_batch') {
+    $ids = postedProjectIds();
+    if ($ids) {
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $db->prepare("SELECT title, artistname, slug FROM projects WHERE id IN ($in)");
+        $stmt->execute($ids);
+        $tracks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (count($tracks) === 1) {
+            $t = $tracks[0];
+            notifyWebhook($settings, 'track', "New track uploaded: '{$t['title']}'" . ($t['artistname'] !== '' ? " by {$t['artistname']}" : '') . ", at URL " . siteLink($settings, "/share/{$t['slug']}"));
+        } elseif ($tracks) {
+            $lines = array_map(fn($t) => "- {$t['title']}: " . siteLink($settings, "/share/{$t['slug']}"), $tracks);
+            notifyWebhook($settings, 'track', count($tracks) . " new tracks uploaded:\n" . implode("\n", $lines));
+        }
+    }
+    jsonOut(200, ['status' => 'success']);
+}
+
+// --- Bulk delete projects (dashboard checkboxes) ---
+if ($action === 'bulk_delete_projects') {
+    $ids = postedProjectIds();
+    if (!$ids) die("No tracks were selected.");
+    try {
+        foreach ($ids as $projectId) deleteProject($db, $projectId);
+    } catch (Exception $e) {
+        die("Delete Failed: " . h($e->getMessage()));
+    }
+    header("Location: index.php?success=Deleted");
+    exit;
 }
 
 // --- Delete specific version of a track inside a project ---
@@ -343,6 +392,8 @@ if ($action === 'new_playlist') {
     }
     $db->commit();
 
+    notifyWebhook($settings, 'playlist', "New playlist created: '$title', at URL " . siteLink($settings, "/playlist/$slug"));
+
     if ($wantsJson) jsonOut(200, ['status' => 'success', 'id' => $playlistId, 'slug' => $slug]);
     header("Location: playlist_edit.php?id=" . $playlistId);
     exit;
@@ -462,6 +513,67 @@ if ($action === 'add_playlist_item') {
     $db->commit();
 
     header("Location: playlist_edit.php?id=$playlistId#tracks");
+    exit;
+}
+
+// --- Bulk add projects to a playlist (dashboard checkboxes) ---
+// playlist_id: an existing playlist's id, or 'new' (then new_playlist_title names it)
+// resolve: '' (ask first if needed) | 'anyway' | 'make_tracks_public' | 'make_playlist_private'
+if ($action === 'bulk_add_to_playlist') {
+    $ids = postedProjectIds();
+    $target = (string)($_POST['playlist_id'] ?? '');
+    $resolve = $_POST['resolve'] ?? '';
+    if (!$ids) die("No tracks were selected.");
+
+    // keep only projects that exist, in the order they were sent
+    $in = implode(',', array_fill(0, count($ids), '?'));
+    $stmt = $db->prepare("SELECT id, is_public FROM projects WHERE id IN ($in)");
+    $stmt->execute($ids);
+    $publicById = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'is_public', 'id');
+    $ids = array_values(array_filter($ids, fn($id) => isset($publicById[$id])));
+    if (!$ids) die("None of the selected tracks exist any more.");
+
+    $db->beginTransaction();
+    if ($target === 'new') {
+        // brand-new playlists start private, so no public/private warning applies
+        $title = trim($_POST['new_playlist_title'] ?? '') ?: 'Untitled Playlist';
+        $newSlug = generateSlug();
+        $stmt = $db->prepare("INSERT INTO playlists (title, slug) VALUES (?, ?)");
+        $stmt->execute([$title, $newSlug]);
+        $playlistId = (int)$db->lastInsertId();
+    } else {
+        $playlistId = (int)$target;
+        $stmt = $db->prepare("SELECT is_public FROM playlists WHERE id = ?");
+        $stmt->execute([$playlistId]);
+        $playlistPublic = $stmt->fetchColumn();
+        if ($playlistPublic === false) { $db->rollBack(); die("Playlist not found."); }
+
+        // private tracks going into a public playlist: check with the admin first (same choices as adding one track)
+        $privateIds = array_values(array_filter($ids, fn($id) => !$publicById[$id]));
+        if ($playlistPublic && $privateIds && $resolve === '') {
+            $db->rollBack();
+            header("Location: index.php?confirm_bulk_add=$playlistId&ids=" . implode(',', $ids));
+            exit;
+        }
+        if ($privateIds && $resolve === 'make_tracks_public') {
+            $in = implode(',', array_fill(0, count($privateIds), '?'));
+            $db->prepare("UPDATE projects SET is_public = 1 WHERE id IN ($in)")->execute($privateIds);
+        } elseif ($resolve === 'make_playlist_private') {
+            $db->prepare("UPDATE playlists SET is_public = 0 WHERE id = ?")->execute([$playlistId]);
+        }
+    }
+
+    // append to the end of the playlist, in dashboard order
+    $stmt = $db->prepare("INSERT INTO playlist_items (playlist_id, project_id, position)
+                          VALUES (?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM playlist_items WHERE playlist_id = ?))");
+    foreach ($ids as $projectId) $stmt->execute([$playlistId, $projectId, $playlistId]);
+    $db->commit();
+
+    if ($target === 'new') {
+        notifyWebhook($settings, 'playlist', "New playlist created: '$title', at URL " . siteLink($settings, "/playlist/$newSlug"));
+    }
+
+    header("Location: playlist_edit.php?id=$playlistId&success=TracksAdded#tracks");
     exit;
 }
 

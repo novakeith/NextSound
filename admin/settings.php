@@ -8,7 +8,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
 
     // only settings this form actually edits (db_schema etc. can't be overwritten from here)
-    $editable = ['site_title', 'site_url', 'primary_color', 'comments_enabled', 'webhook_url'];
+    $editable = ['site_title', 'site_url', 'primary_color', 'comments_enabled', 'webhook_url',
+                 'webhook_on_track', 'webhook_on_comment', 'webhook_on_playlist'];
     $stmt = $db->prepare("INSERT OR REPLACE INTO site_settings (setting_key, setting_value) VALUES (?, ?)");
     foreach ($_POST['set'] ?? [] as $key => $value) {
         if (!in_array($key, $editable, true)) continue;
@@ -16,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // primary_color is printed into a <style> tag on every page, so it must be a plain hex color
         if ($key === 'primary_color' && !preg_match('/^#[0-9a-fA-F]{6}$/', $value)) continue;
-        if ($key === 'comments_enabled' && !in_array($value, ['0', '1'], true)) continue;
+        if (($key === 'comments_enabled' || str_starts_with($key, 'webhook_on_')) && !in_array($value, ['0', '1'], true)) continue;
         if ($key === 'site_url') $value = rtrim($value, '/');
 
         $stmt->execute([$key, $value]);
@@ -64,6 +65,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <label>Webhook URL (e.g. Discord)</label>
         <input type="text" name="set[webhook_url]" value="<?= h($settings['webhook_url'] ?? '') ?>" placeholder="https://discord.com/api/webhooks/...">
+
+        <label>Send a webhook message when:</label>
+        <div class="webhook-events">
+            <?php foreach (['track' => 'A new track is uploaded', 'comment' => 'Someone leaves a comment', 'playlist' => 'A new playlist is created'] as $event => $label): ?>
+                <label class="webhook-event">
+                    <!-- unchecked boxes aren't submitted, so the hidden 0 is what gets saved when it's off -->
+                    <input type="hidden" name="set[webhook_on_<?= $event ?>]" value="0">
+                    <input type="checkbox" class="checkbox" name="set[webhook_on_<?= $event ?>]" value="1" <?= ($settings['webhook_on_' . $event] ?? WEBHOOK_EVENTS[$event]) === '1' ? 'checked' : '' ?>>
+                    <?= $label ?>
+                </label>
+            <?php endforeach; ?>
+        </div>
+        <p class="settings-hint">Messages include share links, even for private tracks and playlists, so only point this at a channel you trust. Bulk uploads send a single combined message.</p>
 		
         <br /><button type="submit" class="btn">Save Configuration</button>
     </form>

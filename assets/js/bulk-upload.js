@@ -162,6 +162,7 @@
 			const form = new FormData();
 			form.append('action', 'new_project');
 			form.append('ajax', '1');
+			form.append('batch', '1'); // skip the per-track webhook - one combined message is sent at the end
 			form.append('csrf_token', cfg.csrfToken);
 			form.append('title', row.querySelector('.f-title').value.trim());
 			form.append('artistname', row.querySelector('.f-artist').value.trim());
@@ -239,6 +240,14 @@
 		for (let i = 0; i < pending.length; i++) {
 			uploadBtn.textContent = `Uploading ${i + 1} of ${pending.length}…`;
 			await uploadRow(pending[i]);
+		}
+
+		// one webhook message for everything that uploaded in this run (the server skips it if that event is off)
+		const uploaded = pending.filter((row) => rows.get(row).status === 'done');
+		if (uploaded.length) {
+			const body = new URLSearchParams({ action: 'notify_upload_batch', ajax: '1', csrf_token: cfg.csrfToken });
+			uploaded.forEach((row) => body.append('project_ids[]', rows.get(row).projectId));
+			fetch('api.php', { method: 'POST', body }).catch(() => {}); // a missed notification shouldn't block anything
 		}
 
 		busy = false;

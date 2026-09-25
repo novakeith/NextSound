@@ -12,6 +12,19 @@ if (isset($_GET['confirm_private']) && PLAYLISTS_ENABLED) {
 	foreach ($projects as $p) { if ($p['id'] == $_GET['confirm_private']) $confirmPrivate = $p; }
 	$confirmPlaylists = $confirmPrivate ? publicPlaylistsContaining($db, $confirmPrivate['id']) : [];
 }
+
+// playlists for the bulk "add to playlist" picker
+$allPlaylists = PLAYLISTS_ENABLED ? $db->query("SELECT id, title, is_public FROM playlists ORDER BY title COLLATE NOCASE")->fetchAll(PDO::FETCH_ASSOC) : [];
+
+// bulk-adding private tracks to a public playlist bounces back here to confirm
+$bulkConfirm = null;
+if (isset($_GET['confirm_bulk_add']) && PLAYLISTS_ENABLED) {
+	$projectsById = array_column($projects, null, 'id');
+	foreach ($allPlaylists as $pl) { if ($pl['id'] == $_GET['confirm_bulk_add']) $bulkConfirm = $pl; }
+	$bulkIds = array_values(array_filter(array_map('intval', explode(',', (string)($_GET['ids'] ?? ''))), fn($id) => isset($projectsById[$id])));
+	$bulkPrivate = array_values(array_filter($bulkIds, fn($id) => !$projectsById[$id]['is_public']));
+	if (!$bulkIds) $bulkConfirm = null;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -41,6 +54,25 @@ if (isset($_GET['confirm_private']) && PLAYLISTS_ENABLED) {
 				<?= csrf_field() ?>
 				<input type="hidden" name="project_id" value="<?= $confirmPrivate['id'] ?>">
 				<button type="submit" name="resolve" value="anyway" class="btn btn-sm">Make private anyway</button>
+				<a href="index.php" class="btn btn-sm btn-alt">Cancel</a>
+			</form>
+		</div>
+	<?php endif; ?>
+
+	<?php if ($bulkConfirm): ?>
+		<!-- Warning: bulk-adding private tracks to a public playlist --!>
+		<div class="card warning-card">
+			<strong><?= count($bulkPrivate) ?> of the <?= count($bulkIds) ?> selected track<?= count($bulkIds) == 1 ? '' : 's' ?> <?= count($bulkPrivate) == 1 ? 'is' : 'are' ?> private, but "<?= h($bulkConfirm['title']) ?>" is public:</strong>
+			<?= h(implode(', ', array_map(fn($id) => $projectsById[$id]['title'], $bulkPrivate))) ?>
+			<p>If you add them, they will be playable by anyone who opens that playlist from the home page. They still won't be listed on the home page by themselves.</p>
+			<form action="api.php" method="POST" class="button-group">
+				<input type="hidden" name="action" value="bulk_add_to_playlist">
+				<?= csrf_field() ?>
+				<input type="hidden" name="playlist_id" value="<?= $bulkConfirm['id'] ?>">
+				<?php foreach ($bulkIds as $id): ?><input type="hidden" name="project_ids[]" value="<?= $id ?>"><?php endforeach; ?>
+				<button type="submit" name="resolve" value="anyway" class="btn btn-sm">Add anyway</button>
+				<button type="submit" name="resolve" value="make_tracks_public" class="btn btn-sm btn-alt">Make those tracks public &amp; add</button>
+				<button type="submit" name="resolve" value="make_playlist_private" class="btn btn-sm btn-alt">Make playlist private &amp; add</button>
 				<a href="index.php" class="btn btn-sm btn-alt">Cancel</a>
 			</form>
 		</div>
@@ -86,80 +118,66 @@ if (isset($_GET['confirm_private']) && PLAYLISTS_ENABLED) {
 
     <hr class='hr'>
 
+	<?php if ($projects): ?>
+	<!-- Bulk actions: the checkboxes on each row belong to this form via form="bulkForm" (forms can't be nested) --!>
+	<form id="bulkForm" action="api.php" method="POST" class="bulk-bar">
+		<?= csrf_field() ?>
+		<label class="bulk-select-all"><input type="checkbox" id="selectAll" class="checkbox" title="Select all"> <span id="bulkCount">Select tracks for bulk actions</span></label>
+
+		<div class="bulk-bar-actions">
+			<?php if (PLAYLISTS_ENABLED): ?>
+				<select name="playlist_id" id="bulkPlaylist">
+					<option value="new">New playlist…</option>
+					<?php foreach ($allPlaylists as $pl): ?>
+						<option value="<?= $pl['id'] ?>"><?= h($pl['title']) ?><?= $pl['is_public'] ? ' (public)' : '' ?></option>
+					<?php endforeach; ?>
+				</select>
+				<input type="text" name="new_playlist_title" id="bulkPlaylistTitle" placeholder="New playlist title">
+				<button type="submit" name="action" value="bulk_add_to_playlist" class="btn btn-sm bulk-needs-selection" id="bulkAddBtn" disabled>Add to playlist</button>
+			<?php endif; ?>
+			<button type="submit" name="action" value="bulk_delete_projects" class="btn btn-sm btn-danger bulk-needs-selection" id="bulkDeleteBtn" disabled>🗑️ Delete</button>
+		</div>
+	</form>
+	<?php endif; ?>
+
+	<div id="projectList">
     <?php foreach($projects as $p): ?>
-        <div class="card">
-            <div class="flex">
-                <div>
-					<div style="display: flex; justify-content: space-between; align-items: center;">
-						<div>
-							<strong>
-								<a class="sharelink" href='../share/<?= $p['slug'] ?>'>
-								<?= htmlspecialchars($p['title']) ?></a>
-							</strong>
-								
-								<small>(by <?= htmlspecialchars($p['artistname']) ?>)</small>
-							
-						<span id="copy-icon-<?= $p['slug'] ?>" 
-							  onclick="copyShareLink('<?= $p['slug'] ?>')" 
-							  style="cursor: pointer; font-size: 0.6em; margin-left: 10px; vertical-align: middle;" 
-							  title="Copy link to clipboard">
-							  🔗
-						</span>
-						</div>
-						
-						<div style="display: flex; gap: 10px; align-items: center; margin-left: 20px;">
-							<a href="edit.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-alt">✏️ Edit</a>
-							
-							<form action="api.php" method="POST" style="margin:0;" onsubmit="return confirm(<?= h(json_encode('Erase this project?' . ($p['playlist_count'] > 0 ? ' It will also be removed from ' . $p['playlist_count'] . ' playlist' . ($p['playlist_count'] == 1 ? '' : 's') . '.' : ''))) ?>);">
-								<input type="hidden" name="action" value="delete_project">
-								<?= csrf_field() ?>
-								<input type="hidden" name="project_id" value="<?= $p['id'] ?>">
-								<button type="submit" class="btn btn-sm btn-danger">🗑️ Delete</button>
-							</form>
-							
-							<div style="margin-left: 20px;">
-								<form action="api.php" method="POST" style="display:inline;">
-									<input type="hidden" name="action" value="toggle_privacy">
-									<?= csrf_field() ?>
-									<input type="hidden" name="project_id" value="<?= $p['id'] ?>">
-									Project Visiblity: <button type="submit" class="btn btn-sm btn-alt">
-										<?= $p['is_public'] ? 'Public' : 'Private' ?>
-									</button>
-								</form>
-							</div>
-							
-						</div>
-					</div>
-                </div>
-		
-            </div>
-            
-            <!--<div style="margin-top: 1rem;">
-                <form action="api.php" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="action" value="new_version">
-                    <input type="hidden" name="project_id" value="<?= $p['id'] ?>">
-					<label><small>Upload New Version:</small></label>
-                    <p><input type="file" name="audio_file" accept="audio/*" required></p>
-					<p><input type="text" name="changelog" placeholder="What changed in this mix?"></p>
-					<p><input name="downloads" value="1" type="checkbox" class="download-toggle checkbox"><label style='display: inline;'>Allow Downloads?</label></p>
-                    <p><button type="submit" class="btn btn-alt">Upload New Version</button></p>
-                </form>
-            </div> --!>
-        </div> 
-    <?php endforeach; 
-	
-	if (empty($projects)) {
-		?>
+        <div class="card project-row">
+			<input type="checkbox" class="checkbox bulk-check" name="project_ids[]" value="<?= $p['id'] ?>" form="bulkForm"
+				   data-playlists="<?= (int)$p['playlist_count'] ?>" aria-label="Select <?= h($p['title']) ?>">
+
+			<div class="project-info">
+				<strong><a class="sharelink" href="../share/<?= h($p['slug']) ?>"><?= h($p['title']) ?></a></strong>
+				<small>(by <?= h($p['artistname']) ?>)</small>
+				<span id="copy-icon-<?= h($p['slug']) ?>" class="copy-link" onclick="copyShareLink('<?= h($p['slug']) ?>')" title="Copy link to clipboard">🔗</span>
+			</div>
+
+			<a href="edit.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-alt">✏️ Edit</a>
+
+			<form action="api.php" method="POST" onsubmit="return confirm(<?= h(json_encode('Erase this project?' . ($p['playlist_count'] > 0 ? ' It will also be removed from ' . $p['playlist_count'] . ' playlist' . ($p['playlist_count'] == 1 ? '' : 's') . '.' : ''))) ?>);">
+				<input type="hidden" name="action" value="delete_project">
+				<?= csrf_field() ?>
+				<input type="hidden" name="project_id" value="<?= $p['id'] ?>">
+				<button type="submit" class="btn btn-sm btn-danger">🗑️ Delete</button>
+			</form>
+
+			<form action="api.php" method="POST" class="project-visibility">
+				<input type="hidden" name="action" value="toggle_privacy">
+				<?= csrf_field() ?>
+				<input type="hidden" name="project_id" value="<?= $p['id'] ?>">
+				<span>Visibility:</span>
+				<button type="submit" class="btn btn-sm btn-alt visibility-btn"><?= $p['is_public'] ? 'Public' : 'Private' ?></button>
+			</form>
+        </div>
+    <?php endforeach; ?>
+	</div>
+
+	<?php if (empty($projects)): ?>
 		<div class="card">
-		<div class="flex">
-			<span>Once you create some projects, they will appear here. 
+			<span>Once you create some projects, they will appear here.
 			You will have the option to edit any notes, download status, and visibility for each.</span>
 		</div>
-		</div>
-		<?php
-		}
-	
-	?>
+	<?php endif; ?>
 
 	<script>
 		window.NEXTSOUND_UPLOAD = <?= json_encode([
@@ -171,6 +189,62 @@ if (isset($_GET['confirm_private']) && PLAYLISTS_ENABLED) {
 	<script src="<?= asset('/assets/js/bulk-upload.js') ?>"></script>
 
 	<script>
+		// ---- bulk selection ----
+		(function () {
+			const form = document.getElementById('bulkForm');
+			if (!form) return;
+			const boxes = [...document.querySelectorAll('.bulk-check')];
+			const selectAll = document.getElementById('selectAll');
+			const count = document.getElementById('bulkCount');
+			const playlistSelect = document.getElementById('bulkPlaylist');
+			const playlistTitle = document.getElementById('bulkPlaylistTitle');
+			let lastClicked = null;
+
+			function refresh() {
+				const n = boxes.filter((b) => b.checked).length;
+				count.textContent = n ? `${n} selected` : 'Select tracks for bulk actions';
+				selectAll.checked = n > 0 && n === boxes.length;
+				selectAll.indeterminate = n > 0 && n < boxes.length;
+				form.querySelectorAll('.bulk-needs-selection').forEach((btn) => { btn.disabled = n === 0; });
+				boxes.forEach((b) => b.closest('.project-row').classList.toggle('selected', b.checked));
+			}
+
+			// shift-click selects everything between this box and the last one clicked
+			boxes.forEach((box, i) => box.addEventListener('click', (e) => {
+				if (e.shiftKey && lastClicked !== null) {
+					const [from, to] = [Math.min(i, lastClicked), Math.max(i, lastClicked)];
+					for (let j = from; j <= to; j++) boxes[j].checked = box.checked;
+				}
+				lastClicked = i;
+				refresh();
+			}));
+			selectAll.addEventListener('change', () => { boxes.forEach((b) => { b.checked = selectAll.checked; }); refresh(); });
+
+			if (playlistSelect) {
+				const syncTitle = () => { playlistTitle.hidden = playlistSelect.value !== 'new'; };
+				playlistSelect.addEventListener('change', syncTitle);
+				syncTitle();
+			}
+
+			form.addEventListener('submit', (e) => {
+				const selected = boxes.filter((b) => b.checked);
+				const action = e.submitter ? e.submitter.value : '';
+				if (action === 'bulk_delete_projects') {
+					const inPlaylists = selected.filter((b) => +b.dataset.playlists > 0).length;
+					let msg = `Delete ${selected.length} track${selected.length === 1 ? '' : 's'} and all of their versions, files and comments? This can't be undone.`;
+					if (inPlaylists) msg += `\n\n${inPlaylists} of them ${inPlaylists === 1 ? 'is' : 'are'} in playlists and will be removed from them.`;
+					if (!confirm(msg)) e.preventDefault();
+				} else if (action === 'bulk_add_to_playlist' && playlistSelect.value === 'new' && !playlistTitle.value.trim()) {
+					e.preventDefault();
+					playlistTitle.classList.add('invalid');
+					playlistTitle.focus();
+				}
+			});
+			playlistTitle && playlistTitle.addEventListener('input', () => playlistTitle.classList.remove('invalid'));
+
+			refresh();
+		})();
+
 		function copyShareLink(slug) {
 		// Construct the full URL
 		const url = window.location.origin + '/share/' + slug;

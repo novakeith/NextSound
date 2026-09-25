@@ -98,11 +98,26 @@ function verify_csrf() {
 	}
 }
 
+// Webhook events the admin can switch on/off in Settings: event => default.
+// Comments default on (that's how it always worked); the others are opt-in.
+define('WEBHOOK_EVENTS', ['comment' => '1', 'track' => '0', 'playlist' => '0']);
+
+// Send a webhook message for an event, if a webhook is set and that event is switched on
+function notifyWebhook($settings, $event, $message) {
+	if (($settings['webhook_on_' . $event] ?? WEBHOOK_EVENTS[$event]) !== '1') return;
+	// Discord rejects messages over 2000 characters
+	sendwebhookNotification($settings['webhook_url'] ?? '', mb_strimwidth($message, 0, 1900, '…'));
+}
+
+// Full public link for a path like /share/abc, using the Site URL from Settings
+function siteLink($settings, $path) { return ($settings['site_url'] ?? '') . $path; }
+
 // webhook functionality
 function sendwebhookNotification($url, $message) {
     if (!$url) return; // Do nothing if no webhook is set
 
-    $data = json_encode(['content' => $message]);
+    // allowed_mentions: never let a title like "@everyone" ping people in the channel (Discord)
+    $data = json_encode(['content' => $message, 'allowed_mentions' => ['parse' => []]]);
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $data);

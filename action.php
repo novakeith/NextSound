@@ -53,7 +53,7 @@ if ($action === 'add_comment') {
     $commentId = $db->lastInsertId();
 
 	// send webhook msg
-	sendwebhookNotification($settings['webhook_url'] ?? '', "New comment left on project '" . $access['title'] . "', at URL " . ($settings['site_url'] ?? '') . $access['path']);
+	notifyWebhook($settings, 'comment', "New comment left on project '" . $access['title'] . "', at URL " . siteLink($settings, $access['path']));
 
     // Respond with success so the frontend knows to show it
     jsonResponse(200, ['status' => 'success', 'id' => (int)$commentId]);

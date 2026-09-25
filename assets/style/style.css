@@ -516,3 +516,72 @@
 		@media (max-width: 700px) {
 			.upload-grid { grid-template-columns: 1fr; }
 		}
+
+		/* Admin dashboard: project rows with actions in fixed columns, so they line up whatever the title length */
+		.project-row {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr) auto auto 11.5rem;
+			align-items: center;
+			gap: 8px 14px;
+			transition: background 0.15s, border-color 0.15s;
+		}
+		.project-row form { margin: 0; }
+		.project-row .btn { white-space: nowrap; }
+		.project-row.selected { background: #1f2630; border-color: var(--primary); }
+		.project-row .checkbox { width: 18px; height: 18px; margin: 0; }
+
+		.project-info { min-width: 0; overflow-wrap: anywhere; }
+
+		.project-visibility {
+			display: flex;
+			align-items: center;
+			justify-content: flex-end;
+			gap: 8px;
+			color: #aaa;
+			font-size: 0.9rem;
+		}
+		.visibility-btn { min-width: 5.5rem; }
+
+		/* bulk action bar - sticks to the top of the screen while scrolling a long list */
+		.bulk-bar {
+			position: sticky;
+			top: 0;
+			z-index: 5;
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px;
+			background: #161616;
+			border: 1px solid #333;
+			border-radius: 8px;
+			padding: 10px 1rem;
+			margin-bottom: 0.5rem;
+		}
+		.bulk-select-all {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			margin: 0;
+			color: #aaa;
+			font-weight: normal;
+		}
+		.bulk-select-all .checkbox { width: 18px; height: 18px; margin: 0; }
+		.bulk-bar-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+		.bulk-bar-actions select { padding: 0.4rem; }
+		.bulk-bar-actions input[type="text"] { width: 12rem; margin: 0; padding: 0.4rem; }
+
+		@media (max-width: 700px) {
+			/* phones: checkbox + title on the first line, the three actions side by side underneath */
+			.project-row { grid-template-columns: auto auto auto 1fr; gap: 10px; }
+			.project-info { grid-column: 2 / -1; }
+			.project-row > :nth-child(3) { grid-column: 2; }
+			.project-visibility { justify-content: flex-end; }
+			.project-visibility span { display: none; } /* the Public/Private button speaks for itself */
+		}
+
+		/* Settings: webhook event checkboxes */
+		.webhook-events { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+		.webhook-event { display: flex; align-items: center; gap: 8px; color: #ccc; font-weight: normal; }
+		.webhook-event .checkbox { width: 18px; height: 18px; margin: 0; }
+		.settings-hint { color: #777; font-size: 0.8rem; margin-top: 4px; }
