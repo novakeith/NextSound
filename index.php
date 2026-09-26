@@ -58,7 +58,8 @@ if ($project) {
     <title><?= h($project ? $project['title'] : $settings['site_title']) ?></title>
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
 	<link rel="stylesheet" href="<?= asset('/assets/style/style.css') ?>">
-    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+    <!-- WaveSurfer 7.12.12, served from this site (pinned) rather than a CDN; license in assets/js/vendor/ -->
+    <script src="<?= asset('/assets/js/vendor/wavesurfer-7.12.12.min.js') ?>"></script>
 
 </head>
 <body>
@@ -71,7 +72,7 @@ if ($project) {
         <?php if ($project && $activeVersion): ?>
 			<?php
 				// a single track is just a playlist of one
-				$playerTracks = [buildTrack($db, $project, $activeVersion, 's=' . rawurlencode($project['slug']), commentsVisible($settings))];
+				$playerTracks = [buildTrack($db, $project, $activeVersion, 's=' . rawurlencode($project['slug']), commentsVisible($settings), false, showPlayCounts($settings))];
 				$playerContext = ['type' => 'track', 'slug' => $project['slug']];
 				include('assets/player.php');
 			?>

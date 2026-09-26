@@ -19,6 +19,7 @@
 		is_active INTEGER DEFAULT 1, 
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
 		allow_download INTEGER DEFAULT 0,
+		play_count INTEGER NOT NULL DEFAULT 0,
 		FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
 	);
 			
@@ -64,4 +65,4 @@
 	-- Some site setting defaults
 	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('comments_enabled', '1');
 	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('primary_color', '#3498db');
-	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('db_schema', '3'); -- keep in sync with DB_SCHEMA_VERSION in config.php
+	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('db_schema', '4'); -- keep in sync with DB_SCHEMA_VERSION in config.php

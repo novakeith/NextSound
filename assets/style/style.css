@@ -585,3 +585,10 @@
 		.webhook-event { display: flex; align-items: center; gap: 8px; color: #ccc; font-weight: normal; }
 		.webhook-event .checkbox { width: 18px; height: 18px; margin: 0; }
 		.settings-hint { color: #777; font-size: 0.8rem; margin-top: 4px; }
+
+		/* Play counts */
+		.play-count { color: #888; margin-left: 8px; white-space: nowrap; }
+		.track-plays { color: #777; }
+
+		/* Comment-form honeypot: off-screen rather than display:none, which some bots check for */
+		.hp-field { position: absolute; left: -10000px; width: 1px; height: 1px; opacity: 0; }

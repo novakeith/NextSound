@@ -21,11 +21,24 @@ function getVersionComments($db, $versionId) {
 	], $stmt->fetchAll(PDO::FETCH_ASSOC));
 }
 
+// Should visitors see play counts? (Admin setting; the admin always sees them on the dashboard.)
+function showPlayCounts($settings) {
+	return PLAY_COUNTS_ENABLED && ($settings['show_play_counts'] ?? '0') === '1';
+}
+
+// A song's plays = the plays of all its versions
+function projectPlayCount($db, $projectId) {
+	$stmt = $db->prepare("SELECT COALESCE(SUM(play_count), 0) FROM versions WHERE project_id = ?");
+	$stmt->execute([$projectId]);
+	return (int)$stmt->fetchColumn();
+}
+
 // Everything the player needs for one track, as a plain array (it gets json_encoded into the page).
 // $access is the query string that proves the listener may reach this version - either the project's
 // share slug ('s=...') or the playlist's slug ('p=...'), so playlist pages never reveal a track's own share link.
-function buildTrack($db, $project, $version, $access, $withComments, $pinned = false) {
-	return [
+// 'plays' is only included when play counts are public, so hidden counts never reach the browser.
+function buildTrack($db, $project, $version, $access, $withComments, $pinned = false, $withPlays = false) {
+	$track = [
 		'versionId' => (int)$version['id'],
 		'versionNumber' => (int)$version['version_number'],
 		'pinned' => $pinned,
@@ -37,6 +50,8 @@ function buildTrack($db, $project, $version, $access, $withComments, $pinned = f
 		'downloadUrl' => $version['allow_download'] ? '/download.php?id=' . (int)$version['id'] . '&' . $access : null,
 		'comments' => $withComments ? getVersionComments($db, $version['id']) : [],
 	];
+	if ($withPlays) $track['plays'] = projectPlayCount($db, $project['id']);
+	return $track;
 }
 
 function getPlaylistBySlug($db, $slug) {

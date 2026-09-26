@@ -59,7 +59,7 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
         <?php foreach($vs as $v): ?>
 			<div class="version-row" style="display: flex; justify-content: space-between; align-items: center;">
 				<div style="flex-grow: 1;">
-					<label style="font-size: 0.6rem"><?= h($v['filename']) ?> | Original filename: <?= h($v['origfilename']) ?> | Version <?= $v['version_number'] ?> changelog:</label>
+					<label style="font-size: 0.6rem"><?= h($v['filename']) ?> | Original filename: <?= h($v['origfilename']) ?> | Version <?= $v['version_number'] ?><?= PLAY_COUNTS_ENABLED ? ' | ▶ ' . number_format($v['play_count']) . ' play' . ($v['play_count'] == 1 ? '' : 's') : '' ?> | changelog:</label>
 					<input type="text" name="versions[<?= $v['id'] ?>]" value="<?= htmlspecialchars($v['changelog']) ?>" style="width:50%;" placeholder="Describe what changed...">
 				</div>
 				<div style="padding: 1px;">

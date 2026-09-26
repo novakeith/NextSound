@@ -21,7 +21,7 @@ define('ALLOWED_AUDIO_TYPES', [
 	'audio/ogg' => 'ogg',
 	'audio/flac' => 'flac', 'audio/x-flac' => 'flac',
 ]);
-define('DB_SCHEMA_VERSION', 3); // bump this when adding a migration to assets/func.php (and update schema.sql)
+define('DB_SCHEMA_VERSION', 4); // bump this when adding a migration to assets/func.php (and update schema.sql)
 
 // database connection / creation (if it doesnt exist)
 try {
@@ -48,6 +48,8 @@ try {
 
 	// playlists need db schema v3 - until the admin runs the update from Settings, playlist features stay hidden
 	define('PLAYLISTS_ENABLED', (int)($settings['db_schema'] ?? 1) >= 3);
+	// play counts need db schema v4 (same idea)
+	define('PLAY_COUNTS_ENABLED', (int)($settings['db_schema'] ?? 1) >= 4);
 } catch (Exception $e) {
     // Log any errors w/ database connection; nothing else on the page can work without the db, so stop here.
     error_log("DB Error: " . $e->getMessage());
@@ -78,6 +80,43 @@ function param($source, $key) {
 function asset($path) {
 	$mtime = @filemtime(__DIR__ . $path);
 	return $path . ($mtime ? '?v=' . $mtime : '');
+}
+
+// The visitor's IP address. Behind a reverse proxy on your own network (Nginx Proxy Manager, Caddy, ...),
+// REMOTE_ADDR is the proxy itself; the proxy adds the real address as the LAST X-Forwarded-For entry.
+// Earlier entries could be made up by the visitor, so only the last one is trusted, and only when the
+// request really came from a private-network proxy.
+function clientIp() {
+	$remote = $_SERVER['REMOTE_ADDR'] ?? '';
+	$forwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+	$fromLocalProxy = !filter_var($remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+	if ($forwarded !== '' && $fromLocalProxy) {
+		$parts = array_map('trim', explode(',', $forwarded));
+		$last = end($parts);
+		if (filter_var($last, FILTER_VALIDATE_IP)) return $last;
+	}
+	return $remote;
+}
+
+// Simple per-visitor rate limiting. $limits maps a window in seconds to the most events allowed in it,
+// e.g. [60 => 5, 3600 => 30]. Returns true (and records nothing) if the visitor is over any limit;
+// otherwise records this event and returns false. IPs are stored hashed, and entries expire after a day.
+function rateLimited($db, $bucket, array $limits) {
+	// created on first use, so it works without a database update
+	$db->exec("CREATE TABLE IF NOT EXISTS rate_limits (bucket TEXT NOT NULL, created_at INTEGER NOT NULL)");
+	$db->exec("CREATE INDEX IF NOT EXISTS idx_rate_limits ON rate_limits(bucket, created_at)");
+
+	$now = time();
+	$key = $bucket . ':' . hash('sha256', clientIp());
+	$db->prepare("DELETE FROM rate_limits WHERE created_at < ?")->execute([$now - 86400]);
+
+	$count = $db->prepare("SELECT COUNT(*) FROM rate_limits WHERE bucket = ? AND created_at > ?");
+	foreach ($limits as $window => $max) {
+		$count->execute([$key, $now - $window]);
+		if ($count->fetchColumn() >= $max) return true;
+	}
+	$db->prepare("INSERT INTO rate_limits (bucket, created_at) VALUES (?, ?)")->execute([$key, $now]);
+	return false;
 }
 
 // shorthand for escaping anything printed into HTML

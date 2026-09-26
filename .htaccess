@@ -24,7 +24,7 @@ RewriteRule ^playlist/([a-zA-Z0-9]+)$ playlist.php?slug=$1 [L,QSA]
 
 # --- Files that should never be served directly ---
 # Setup/config files that ship in the image
-<FilesMatch "\.(sql|sh|ini|md)$|^(LICENSE|Dockerfile)$">
+<FilesMatch "\.(sql|sh|ini|md)$|^(LICENSE|Dockerfile)$|^\.env">
     Require all denied
 </FilesMatch>
 # PHP files that are only meant to be included by other pages, never opened directly

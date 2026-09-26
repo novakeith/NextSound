@@ -12,6 +12,12 @@
 	let current = 0;     // index of the loaded track
 	let loadToken = 0;   // guards against a slow load finishing after the listener already skipped ahead
 
+	// play counting: a play counts once the listener has actually heard this many seconds of a track
+	const PLAY_THRESHOLD = 5;
+	let listened = 0;        // seconds heard of the current track (seeking doesn't count)
+	let lastTime = 0;
+	let playRecorded = false;
+
 	const wavesurfer = WaveSurfer.create({
 		container: '#waveform',
 		waveColor: '#555',
@@ -41,6 +47,9 @@
 		const track = tracks[index];
 		const token = ++loadToken;
 
+		listened = 0;
+		lastTime = 0;
+		playRecorded = false;
 		renderInfo(track);
 		renderComments(track);
 		renderTracklist();
@@ -65,7 +74,37 @@
 	}
 
 	wavesurfer.on('ready', () => { $('duration').textContent = formatTime(wavesurfer.getDuration()); });
-	wavesurfer.on('timeupdate', (t) => { $('currentTime').textContent = formatTime(t); });
+	wavesurfer.on('timeupdate', (t) => {
+		$('currentTime').textContent = formatTime(t);
+		trackListening(t);
+	});
+
+	// Add up real listening time: small forward steps while playing count, jumps (seeking) don't.
+	// Very short tracks count once they're almost finished.
+	function trackListening(t) {
+		const step = t - lastTime;
+		lastTime = t;
+		if (playRecorded || !wavesurfer.isPlaying() || step <= 0 || step > 1.5) return;
+		listened += step;
+		const needed = Math.min(PLAY_THRESHOLD, wavesurfer.getDuration() * 0.9 || PLAY_THRESHOLD);
+		if (listened >= needed) recordPlay(tracks[current]);
+	}
+
+	function recordPlay(track) {
+		playRecorded = true;
+		const body = new URLSearchParams({ action: 'record_play', version_id: track.versionId });
+		body.append(isPlaylist ? 'playlist_slug' : 'project_slug', cfg.context.slug);
+		fetch('/action.php', { method: 'POST', body })
+			.then((res) => res.json())
+			.then((data) => {
+				// only present when counts are public; refresh the number on screen
+				if (data.plays === undefined || track.plays === undefined) return;
+				tracks.forEach((t) => { if (t.title === track.title && t.plays !== undefined) t.plays = data.plays; });
+				if (tracks[current] === track) renderPlays(track);
+				renderTracklist();
+			})
+			.catch(() => {}); // a missed count isn't worth bothering the listener about
+	}
 	wavesurfer.on('finish', playNext); // playlists roll straight into the next track
 
 	$('playPause').onclick = () => wavesurfer.playPause();
@@ -89,9 +128,20 @@
 
 	// ---------- track info ----------
 
+	function formatPlays(n) {
+		return `${n.toLocaleString()} play${n === 1 ? '' : 's'}`;
+	}
+
+	function renderPlays(track) {
+		const el = $('trackPlays');
+		el.hidden = track.plays === undefined;
+		if (track.plays !== undefined) el.textContent = ' · ▶ ' + formatPlays(track.plays);
+	}
+
 	function renderInfo(track) {
 		$('trackTitle').textContent = track.title;
 		$('trackArtist').textContent = track.artist;
+		renderPlays(track);
 
 		$('trackNotes').textContent = track.notes;
 		const dl = $('downloadLink');
@@ -107,7 +157,7 @@
 		const list = $('tracklist');
 		if (!list) return;
 		list.replaceChildren(...tracks.map((track, i) => {
-			const meta = `v${track.versionNumber}${track.pinned ? ' · pinned' : ''}`;
+			const meta = `v${track.versionNumber}${track.pinned ? ' · pinned' : ''}${track.plays !== undefined ? ' · ' + formatPlays(track.plays) : ''}`;
 			const item = el('li', { className: 'tracklist-item' + (i === current ? ' active' : '') },
 				el('span', { className: 'tracklist-title' }, track.title),
 				el('span', { className: 'tracklist-artist' }, track.artist),
@@ -231,6 +281,7 @@
 			formData.append('timestamp', target.time);
 			formData.append('author', author);
 			formData.append('text', text);
+			formData.append('website', $('websiteInput').value); // honeypot - always empty for real people
 			formData.append(isPlaylist ? 'playlist_slug' : 'project_slug', cfg.context.slug);
 
 			const response = await fetch('/action.php', { method: 'POST', body: formData });

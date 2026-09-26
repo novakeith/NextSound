@@ -96,6 +96,14 @@ function runDBmigration($schema, $db){
 			$db->exec("CREATE INDEX IF NOT EXISTS idx_playlist_items_playlist ON playlist_items(playlist_id, position)");
 		}
 
+		// Migrate from v3 to v4: play counts (per version; a song's total is the sum of its versions)
+		if ($schema < 4)
+		{
+			if (!columnExists($db, 'versions', 'play_count')) {
+				$db->exec("ALTER TABLE versions ADD COLUMN play_count INTEGER NOT NULL DEFAULT 0");
+			}
+		}
+
 		// record the new schema version - do this last in case previous statements fail
 		$stmt = $db->prepare("INSERT OR REPLACE INTO site_settings (setting_key, setting_value) VALUES ('db_schema', ?)");
 		$stmt->execute([(string)DB_SCHEMA_VERSION]);

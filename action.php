@@ -40,6 +40,17 @@ if ($action === 'add_comment') {
         jsonResponse(404, ['status' => 'error', 'message' => 'Track not found.']);
     }
 
+    // Honeypot: the comment form has a hidden "website" field that people never see or fill in.
+    // Bots that fill in every field get a fake success, so they don't learn to skip it.
+    if (param($_POST, 'website') !== '') {
+        jsonResponse(200, ['status' => 'success', 'id' => 0]);
+    }
+
+    // At most 5 comments a minute / 30 an hour from one visitor (the admin is exempt)
+    if (!isAdmin() && rateLimited($db, 'comment', [60 => 5, 3600 => 30])) {
+        jsonResponse(429, ['status' => 'error', 'message' => "You're commenting too fast - wait a minute and try again."]);
+    }
+
     // Give the commenter a 30-day tracking cookie
 	// eventually this will mean they wont have to retype their name,
 	// and I can give them controls to edit/delete their comments. But not yet.
@@ -57,6 +68,36 @@ if ($action === 'add_comment') {
 
     // Respond with success so the frontend knows to show it
     jsonResponse(200, ['status' => 'success', 'id' => (int)$commentId]);
+}
+
+// Count a play: the player calls this once a listener has heard about 5 seconds of a track.
+// Rudimentary on purpose - the same visitor replaying the same version within 30 minutes counts once,
+// one visitor can add at most 200 plays an hour, and the admin's own listening isn't counted.
+if ($action === 'record_play') {
+    if (!PLAY_COUNTS_ENABLED) jsonResponse(200, ['status' => 'ignored']);
+
+    $version_id = (int)param($_POST, 'version_id');
+    if (!resolveVersionAccess($db, $version_id, param($_POST, 'project_slug'), param($_POST, 'playlist_slug'))) {
+        jsonResponse(404, ['status' => 'error', 'message' => 'Track not found.']);
+    }
+
+    // forget plays older than 30 minutes, so the session doesn't grow forever
+    $recent = array_filter($_SESSION['plays'] ?? [], fn($t) => $t > time() - 1800);
+    $counted = false;
+    if (!isAdmin() && !isset($recent[$version_id]) && !rateLimited($db, 'play', [3600 => 200])) {
+        $db->prepare("UPDATE versions SET play_count = play_count + 1 WHERE id = ?")->execute([$version_id]);
+        $recent[$version_id] = time();
+        $counted = true;
+    }
+    $_SESSION['plays'] = $recent;
+
+    $response = ['status' => 'success', 'counted' => $counted];
+    if (showPlayCounts($settings)) {
+        $stmt = $db->prepare("SELECT project_id FROM versions WHERE id = ?");
+        $stmt->execute([$version_id]);
+        $response['plays'] = projectPlayCount($db, $stmt->fetchColumn());
+    }
+    jsonResponse(200, $response);
 }
 
 jsonResponse(400, ['status' => 'error', 'message' => 'Unknown action.']);

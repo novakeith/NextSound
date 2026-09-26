@@ -11,7 +11,7 @@ $showComments = commentsVisible($settings);
 ?>
 			<div class="player-card">
 				<h1 id="trackTitle" style="margin-top: 0; margin-bottom: 5px;"></h1>
-				<div id="trackArtist" class="track-artist"></div>
+				<div class="track-artist"><span id="trackArtist"></span><span id="trackPlays" class="track-plays" hidden></span></div>
 
 				<div class="project-notes" id="trackNotesBox" hidden>
 					<span id="trackNotes" class="multiline"></span>
@@ -57,6 +57,8 @@ $showComments = commentsVisible($settings);
                 <form id="commentForm" style="display: flex; gap: 10px;">
                     <input type="text" id="authorInput" placeholder="Your Name" style="width: 25%;">
                     <input type="text" id="textInput" placeholder="Feedback... (click to lock time)" style="flex-grow: 1;" required>
+                    <!-- honeypot: hidden from people; bots that fill it in are ignored -->
+                    <input type="text" id="websiteInput" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
                     <button type="submit" class="btn">Post</button>
                 </form>
             </div>

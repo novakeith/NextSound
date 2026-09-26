@@ -4,7 +4,8 @@ require_once('../assets/func.php');
 if (!isAdmin()) { header("Location: login.php"); exit; }
 
 $playlistCountSql = PLAYLISTS_ENABLED ? "(SELECT COUNT(DISTINCT playlist_id) FROM playlist_items pi WHERE pi.project_id = projects.id)" : "0";
-$projects = $db->query("SELECT *, $playlistCountSql AS playlist_count FROM projects ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+$playCountSql = PLAY_COUNTS_ENABLED ? "(SELECT COALESCE(SUM(play_count), 0) FROM versions v WHERE v.project_id = projects.id)" : "NULL";
+$projects = $db->query("SELECT *, $playlistCountSql AS playlist_count, $playCountSql AS plays FROM projects ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
 
 // making a track private that's in public playlists bounces back here to confirm
 $confirmPrivate = null;
@@ -149,6 +150,7 @@ if (isset($_GET['confirm_bulk_add']) && PLAYLISTS_ENABLED) {
 			<div class="project-info">
 				<strong><a class="sharelink" href="../share/<?= h($p['slug']) ?>"><?= h($p['title']) ?></a></strong>
 				<small>(by <?= h($p['artistname']) ?>)</small>
+				<?php if ($p['plays'] !== null): ?><small class="play-count" title="Plays across all versions">▶ <?= number_format($p['plays']) ?></small><?php endif; ?>
 				<span id="copy-icon-<?= h($p['slug']) ?>" class="copy-link" onclick="copyShareLink('<?= h($p['slug']) ?>')" title="Copy link to clipboard">🔗</span>
 			</div>
 
