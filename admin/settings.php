@@ -8,7 +8,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
 
     // only settings this form actually edits (db_schema etc. can't be overwritten from here)
-    $editable = ['site_title', 'site_url', 'primary_color', 'comments_enabled', 'show_play_counts', 'webhook_url',
+    $editable = ['site_title', 'site_url', 'primary_color', 'comments_enabled', 'require_comment_approval', 'show_play_counts', 'webhook_url',
                  'webhook_on_track', 'webhook_on_comment', 'webhook_on_playlist'];
     $stmt = $db->prepare("INSERT OR REPLACE INTO site_settings (setting_key, setting_value) VALUES (?, ?)");
     foreach ($_POST['set'] ?? [] as $key => $value) {
@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // primary_color is printed into a <style> tag on every page, so it must be a plain hex color
         if ($key === 'primary_color' && !preg_match('/^#[0-9a-fA-F]{6}$/', $value)) continue;
-        if (($key === 'comments_enabled' || $key === 'show_play_counts' || str_starts_with($key, 'webhook_on_')) && !in_array($value, ['0', '1'], true)) continue;
+        if (($key === 'comments_enabled' || $key === 'require_comment_approval' || $key === 'show_play_counts' || str_starts_with($key, 'webhook_on_')) && !in_array($value, ['0', '1'], true)) continue;
         if ($key === 'site_url') $value = rtrim($value, '/');
 
         $stmt->execute([$key, $value]);
@@ -62,6 +62,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <option value="1" <?= $settings['comments_enabled'] == '1' ? 'selected' : '' ?>>Enabled</option>
             <option value="0" <?= $settings['comments_enabled'] == '0' ? 'selected' : '' ?>>Disabled</option>
         </select>
+
+        <?php if (COMMENT_APPROVAL_ENABLED): ?>
+        <label class="webhook-event" style="margin-bottom: 1rem;">
+            <input type="hidden" name="set[require_comment_approval]" value="0">
+            <input type="checkbox" class="checkbox" name="set[require_comment_approval]" value="1" <?= ($settings['require_comment_approval'] ?? '0') === '1' ? 'checked' : '' ?>>
+            Require approval before comments are visible
+        </label>
+        <p class="settings-hint" style="margin-top: -0.5rem;">New comments from visitors wait in your 🔔 menu until you approve them (Deny deletes them). Your own comments are never held. Turning this off later doesn't publish comments that are still waiting.</p>
+        <?php endif; ?>
 
         <?php if (PLAY_COUNTS_ENABLED): ?>
         <label class="webhook-event" style="margin-bottom: 1rem;">

@@ -59,15 +59,22 @@ if ($action === 'add_comment') {
     //setcookie('nextsound_guest', $author_token, time() + (60 * 60 * 24 * 30), "/");
     $author_token = null;
 
-    $stmt = $db->prepare("INSERT INTO comments (version_id, timestamp, author_name, author_token, text) VALUES (?, ?, ?, ?, ?)");
-    $stmt->execute([$version_id, $timestamp, $author, $author_token, $text]);
+    $columns = ['version_id' => $version_id, 'timestamp' => $timestamp, 'author_name' => $author, 'author_token' => $author_token, 'text' => $text];
+    // new comments land unread in the admin's notifications menu - except the admin's own
+    if (NOTIFICATIONS_ENABLED) $columns['is_read'] = isAdmin() ? 1 : 0;
+    // with approval required, visitors' comments are held (hidden) until the admin approves them
+    $held = !isAdmin() && commentApprovalRequired($settings);
+    if (COMMENT_APPROVAL_ENABLED) $columns['is_approved'] = $held ? 0 : 1;
+
+    $stmt = $db->prepare("INSERT INTO comments (" . implode(', ', array_keys($columns)) . ") VALUES (" . implode(', ', array_fill(0, count($columns), '?')) . ")");
+    $stmt->execute(array_values($columns));
     $commentId = $db->lastInsertId();
 
 	// send webhook msg
-	notifyWebhook($settings, 'comment', "New comment left on project '" . $access['title'] . "', at URL " . siteLink($settings, $access['path']));
+	notifyWebhook($settings, 'comment', "New comment left on project '" . $access['title'] . "'" . ($held ? " (awaiting your approval)" : "") . ", at URL " . siteLink($settings, $access['path']));
 
     // Respond with success so the frontend knows to show it
-    jsonResponse(200, ['status' => 'success', 'id' => (int)$commentId]);
+    jsonResponse(200, ['status' => 'success', 'id' => (int)$commentId, 'held' => $held]);
 }
 
 // Count a play: the player calls this once a listener has heard about 5 seconds of a track.

@@ -61,6 +61,7 @@ $showComments = commentsVisible($settings);
                     <input type="text" id="websiteInput" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
                     <button type="submit" class="btn">Post</button>
                 </form>
+                <p id="commentNotice" class="comment-notice" hidden></p>
             </div>
 
 			<!-- Comment display --!>

@@ -186,11 +186,19 @@
 		const node = el('div', { className: 'comment', id: 'comment-container-' + c.id },
 			time, el('strong', {}, c.author + ':'), ' ', c.text);
 		if (c.status === 'rejected') node.style.opacity = '0.5';
+		// only the admin ever receives held comments
+		if (c.held) {
+			node.classList.add('comment-held');
+			node.append(el('span', { className: 'held-tag' }, ' ⏳ Awaiting approval - only you can see this'));
+		}
 
 		if (cfg.isAdmin && c.id) node.append(renderAdminControls(c, node));
 
 		if (c.status !== 'pending') {
-			node.append(el('span', { className: 'status-badge ' + c.status }, c.status === 'accepted' ? ' ✅ Resolved' : ' ❌ Declined'));
+			// shown to everyone, so commenters can see what happened to their feedback
+			node.append(c.status === 'accepted'
+				? el('span', { className: 'status-badge accepted', title: 'The artist is incorporating this feedback into the next version' }, ' ✅ Resolved')
+				: el('span', { className: 'status-badge rejected', title: "The artist doesn't plan to act on this feedback" }, ' ❌ Declined'));
 		}
 		return node;
 	}
@@ -205,23 +213,34 @@
 	function renderAdminControls(c, node) {
 		const statusMsg = el('span', { className: 'status-badge' });
 
+		// 👍 = incorporated into the next version, 👎 = won't be implemented.
+		// The chosen one looks pressed; clicking it again clears the decision back to undecided.
+		const TRIAGE_HELP = {
+			accepted: 'Incorporated - this feedback is going into the next version',
+			rejected: "Not planned - this feedback won't be implemented",
+		};
 		const triage = (status, label) => {
-			const btn = el('button', { className: 'triage-btn' }, label);
+			const active = c.status === status;
+			const btn = el('button', {
+				className: 'triage-btn' + (active ? ' active ' + status : ''),
+				title: active ? TRIAGE_HELP[status] + ' (click again to clear)' : 'Mark as: ' + TRIAGE_HELP[status],
+			}, label);
+			btn.setAttribute('aria-pressed', active);
 			btn.onclick = () => {
+				const newStatus = active ? 'pending' : status;
 				statusMsg.textContent = 'Updating...';
-				adminPost({ action: 'set_comment_status', comment_id: c.id, status })
+				adminPost({ action: 'set_comment_status', comment_id: c.id, status: newStatus })
 					.then((res) => {
 						if (!res.ok) throw new Error(res.status);
-						c.status = status;
-						statusMsg.textContent = status === 'accepted' ? 'Marked as Resolved ✅ ' : 'Marked as Declined ❌ ';
-						node.style.opacity = status === 'rejected' ? '0.5' : '1';
+						c.status = newStatus;
+						node.replaceWith(renderComment(c)); // redraw with the new badge and pressed button
 					})
 					.catch(() => { statusMsg.textContent = 'Error!'; });
 			};
 			return btn;
 		};
 
-		const del = el('button', { className: 'delete-comment-btn', style: 'background: #442222; border: 1px solid #663333;' }, '🗑️');
+		const del = el('button', { className: 'delete-comment-btn', title: 'Delete this comment', style: 'background: #442222; border: 1px solid #663333;' }, '🗑️');
 		del.onclick = () => {
 			if (!confirm('Are you sure you want to delete this comment?')) return;
 			adminPost({ action: 'delete_comment', comment_id: c.id }).then((res) => {
@@ -236,8 +255,37 @@
 			});
 		};
 
-		return el('div', { className: 'admin-controls' }, triage('accepted', '👍'), triage('rejected', '👎'), statusMsg, del);
+		const controls = [triage('accepted', '👍'), triage('rejected', '👎'), statusMsg, del];
+		if (c.held) {
+			// approving makes it visible to everyone; denying = the 🗑️ delete button
+			const approve = el('button', { className: 'btn btn-sm approve-btn', title: 'Approve - make this comment visible to everyone' }, 'Approve');
+			approve.onclick = () => {
+				approve.disabled = true;
+				adminPost({ action: 'approve_comment', comment_id: c.id, ajax: '1' })
+					.then((res) => { if (!res.ok) throw new Error(res.status); markApproved(c.id); })
+					.catch(() => { approve.disabled = false; statusMsg.textContent = 'Error!'; });
+			};
+			del.title = 'Deny - delete this comment';
+			controls.unshift(approve);
+		}
+		return el('div', { className: 'admin-controls' }, ...controls);
 	}
+
+	// A held comment was approved (here or from the 🔔 menu): update it in place
+	function markApproved(id) {
+		tracks.forEach((t) => t.comments.forEach((c) => { if (c.id === id) c.held = false; }));
+		const node = document.getElementById('comment-container-' + id);
+		if (node) {
+			node.classList.remove('comment-held');
+			node.querySelectorAll('.held-tag, .approve-btn').forEach((x) => x.remove());
+		}
+	}
+	document.addEventListener('nextsound:comment-approved', (e) => markApproved(e.detail));
+	document.addEventListener('nextsound:comment-deleted', (e) => {
+		tracks.forEach((t) => { t.comments = t.comments.filter((c) => c.id !== e.detail); });
+		const node = document.getElementById('comment-container-' + e.detail);
+		if (node) node.remove();
+	});
 
 	// ---------- comment form ----------
 	// Clicking into the box locks both the time AND the track, so a comment typed while
@@ -259,6 +307,14 @@
 		if (lock && textInput.value.trim() !== '') { showLock(); return; }
 		lock = null;
 		showLock();
+	}
+
+	function showNotice(message) {
+		const notice = $('commentNotice');
+		notice.textContent = message;
+		notice.hidden = false;
+		clearTimeout(showNotice.timer);
+		showNotice.timer = setTimeout(() => { notice.hidden = true; }, 8000);
 	}
 
 	if (form) {
@@ -293,6 +349,15 @@
 			}
 
 			textInput.value = '';
+
+			// held for approval: tell the poster, and don't show it (it isn't public yet)
+			if (result.held) {
+				showNotice('Thanks! Your comment will appear once it has been approved.');
+				lock = null;
+				showLock();
+				return;
+			}
+
 			const comment = { id: result.id, timestamp: target.time, author, text, status: 'pending' };
 			track.comments.unshift(comment);
 			if (target.index === current) {
@@ -306,5 +371,18 @@
 		};
 	}
 
+	// Arriving from the admin's notifications menu (#comment-123): scroll to that comment and flash it
+	function highlightLinkedComment() {
+		const match = location.hash.match(/^#comment-(\d+)$/);
+		const comment = match && document.getElementById('comment-container-' + match[1]);
+		if (!comment) return;
+		comment.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		comment.classList.remove('comment-highlight');
+		void comment.offsetWidth; // restart the animation if it's the same comment again
+		comment.classList.add('comment-highlight');
+	}
+	window.addEventListener('hashchange', highlightLinkedComment);
+
 	loadTrack(0, false);
+	highlightLinkedComment();
 })();

@@ -35,6 +35,8 @@ As of 9/24/26, you can:
 **Feedback**
 - Listeners can click on a waveform and leave a timestamped comment
 - Admins can mark comments as resolved/declined, or delete them
+- A notifications menu (🔔) in the top bar collects new comments for review, with read/unread status and "mark all as read"
+- Optionally require approval before visitors' comments become visible - approve or deny (delete) them right from the notifications menu
 - Comments can be disabled site-wide. They will still appear for the admin though, so you can use this as a 'note to self' thing on tracks while still sharing the track with other people.
 - Play counts for every track and version, always visible to you in the admin panel; you can choose to show them publicly too
 - Optional webhook (e.g. Discord) that posts a message when a comment is left, a track is uploaded, and/or a playlist is created - you pick which in Settings

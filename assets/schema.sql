@@ -31,6 +31,8 @@
 		author_token TEXT, 
 		text TEXT NOT NULL, 
 		status TEXT DEFAULT 'pending',
+		is_read INTEGER NOT NULL DEFAULT 0, -- has the admin seen it in the notifications menu?
+		is_approved INTEGER NOT NULL DEFAULT 1, -- 0 = held until the admin approves it (when approval is required)
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
 		FOREIGN KEY(version_id) REFERENCES versions(id) ON DELETE CASCADE
 	);
@@ -65,4 +67,4 @@
 	-- Some site setting defaults
 	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('comments_enabled', '1');
 	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('primary_color', '#3498db');
-	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('db_schema', '4'); -- keep in sync with DB_SCHEMA_VERSION in config.php
+	INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('db_schema', '6'); -- keep in sync with DB_SCHEMA_VERSION in config.php

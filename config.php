@@ -21,7 +21,7 @@ define('ALLOWED_AUDIO_TYPES', [
 	'audio/ogg' => 'ogg',
 	'audio/flac' => 'flac', 'audio/x-flac' => 'flac',
 ]);
-define('DB_SCHEMA_VERSION', 4); // bump this when adding a migration to assets/func.php (and update schema.sql)
+define('DB_SCHEMA_VERSION', 6); // bump this when adding a migration to assets/func.php (and update schema.sql)
 
 // database connection / creation (if it doesnt exist)
 try {
@@ -50,6 +50,10 @@ try {
 	define('PLAYLISTS_ENABLED', (int)($settings['db_schema'] ?? 1) >= 3);
 	// play counts need db schema v4 (same idea)
 	define('PLAY_COUNTS_ENABLED', (int)($settings['db_schema'] ?? 1) >= 4);
+	// the admin's comment notifications need db schema v5
+	define('NOTIFICATIONS_ENABLED', (int)($settings['db_schema'] ?? 1) >= 5);
+	// holding comments for approval needs db schema v6
+	define('COMMENT_APPROVAL_ENABLED', (int)($settings['db_schema'] ?? 1) >= 6);
 } catch (Exception $e) {
     // Log any errors w/ database connection; nothing else on the page can work without the db, so stop here.
     error_log("DB Error: " . $e->getMessage());
@@ -117,6 +121,43 @@ function rateLimited($db, $bucket, array $limits) {
 	}
 	$db->prepare("INSERT INTO rate_limits (bucket, created_at) VALUES (?, ?)")->execute([$key, $now]);
 	return false;
+}
+
+// Are new visitor comments held until the admin approves them? (Setting; the admin's own never are.)
+function commentApprovalRequired($settings) {
+	return COMMENT_APPROVAL_ENABLED && ($settings['require_comment_approval'] ?? '0') === '1';
+}
+
+// The admin's review queue: unread comments, plus any still awaiting approval (those stay until approved or denied,
+// even once read, so a held comment can't get lost)
+function reviewQueueWhere() {
+	return COMMENT_APPROVAL_ENABLED ? "(c.is_read = 0 OR c.is_approved = 0)" : "c.is_read = 0";
+}
+function reviewQueueCount($db) {
+	return (int)$db->query("SELECT COUNT(*) FROM comments c WHERE " . reviewQueueWhere())->fetchColumn();
+}
+
+// The admin's notifications menu: [number of comments in the queue, the queue itself (held ones first, then newest)]
+function adminNotifications($db, $limit = 20) {
+	if (!NOTIFICATIONS_ENABLED || !isAdmin()) return [0, []];
+	$count = reviewQueueCount($db);
+	if ($count === 0) return [0, []];
+	$approved = COMMENT_APPROVAL_ENABLED ? "c.is_approved" : "1";
+	$stmt = $db->prepare("SELECT c.id, c.author_name, c.text, c.timestamp, c.created_at, $approved AS is_approved,
+								 v.id AS version_id, v.version_number, p.title, p.slug
+						  FROM comments c JOIN versions v ON v.id = c.version_id JOIN projects p ON p.id = v.project_id
+						  WHERE " . reviewQueueWhere() . " ORDER BY $approved ASC, c.id DESC LIMIT ?");
+	$stmt->execute([$limit]);
+	return [$count, $stmt->fetchAll(PDO::FETCH_ASSOC)];
+}
+
+// "5m ago" style age for a database timestamp (SQLite's CURRENT_TIMESTAMP is UTC)
+function timeAgo($datetime) {
+	$seconds = max(0, time() - strtotime($datetime . ' UTC'));
+	if ($seconds < 60) return 'just now';
+	foreach ([86400 * 7 => 'w', 86400 => 'd', 3600 => 'h', 60 => 'm'] as $unit => $label) {
+		if ($seconds >= $unit) return floor($seconds / $unit) . $label . ' ago';
+	}
 }
 
 // shorthand for escaping anything printed into HTML

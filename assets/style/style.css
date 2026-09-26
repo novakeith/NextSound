@@ -592,3 +592,97 @@
 
 		/* Comment-form honeypot: off-screen rather than display:none, which some bots check for */
 		.hp-field { position: absolute; left: -10000px; width: 1px; height: 1px; opacity: 0; }
+
+		/* Admin notifications (🔔 in the top bar) */
+		.navbar > div { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+		.notif { position: relative; margin-right: 10px; }
+		.notif-bell {
+			position: relative;
+			background: none;
+			border: none;
+			cursor: pointer;
+			font-size: 1.1rem;
+			padding: 2px 6px;
+			border-radius: 6px;
+		}
+		.notif-bell:hover, .notif-bell[aria-expanded="true"] { background: #222; }
+		.notif-badge {
+			position: absolute;
+			top: -4px;
+			right: -6px;
+			min-width: 18px;
+			height: 18px;
+			padding: 0 5px;
+			border-radius: 9px;
+			background: #c0392b;
+			color: #fff;
+			font-size: 0.7rem;
+			font-weight: bold;
+			line-height: 18px;
+			text-align: center;
+		}
+		.notif-panel {
+			position: absolute;
+			right: 0;
+			top: calc(100% + 8px);
+			z-index: 50;
+			width: min(380px, 90vw);
+			max-height: 70vh;
+			overflow-y: auto;
+			background: #1a1a1a;
+			border: 1px solid #333;
+			border-radius: 8px;
+			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+		}
+		.notif-head {
+			position: sticky;
+			top: 0;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 10px 14px;
+			background: #1a1a1a;
+			border-bottom: 1px solid #333;
+		}
+		.notif-markall { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 0.8rem; padding: 0; }
+		.notif-markall:hover { text-decoration: underline; }
+		.notif-item {
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+			padding: 10px 14px;
+			border-bottom: 1px solid #262626;
+			color: #ddd;
+			text-decoration: none;
+			font-size: 0.85rem;
+		}
+		.notif-item:hover { background: #222; }
+		.notif-meta { color: #777; font-size: 0.75rem; }
+		.notif-text { color: #aaa; overflow-wrap: anywhere; }
+		.notif-empty, .notif-more { color: #777; font-size: 0.8rem; padding: 12px 14px; margin: 0; }
+
+		/* the comment you clicked through to from a notification */
+		.comment-highlight { animation: comment-flash 2.5s ease-out; }
+		@keyframes comment-flash {
+			0%, 30% { background: #2c3e50; box-shadow: 0 0 0 2px var(--primary); }
+			100% { background: #252525; box-shadow: none; }
+		}
+
+		/* Comments held for approval */
+		.comment-held { border-left-color: #BD8235; background: #2a2620; }
+		.held-tag { color: #BD8235; font-size: 0.75rem; margin-left: 6px; }
+		.approve-btn { background: #27ae60; margin-right: 6px; }
+		.comment-notice { color: #27ae60; margin: 10px 0 0; font-size: 0.9rem; }
+
+		.notif-item { flex-direction: column; }
+		.notif-link { display: flex; flex-direction: column; gap: 2px; color: inherit; text-decoration: none; }
+		.notif-held { background: #221f1a; border-left: 3px solid #BD8235; }
+		.notif-actions { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+		.notif-held-tag { color: #BD8235; font-size: 0.75rem; margin-right: auto; }
+		.notif-actions .btn { padding: 3px 10px; font-size: 0.75rem; }
+		.notif-approve { background: #27ae60; }
+
+		/* 👍/👎 feedback triage: the chosen decision looks pressed (click it again to clear) */
+		.triage-btn.active.accepted { background: #1e4d2e; border-color: #27ae60; }
+		.triage-btn.active.rejected { background: #4d1e1e; border-color: #c0392b; }
+		.status-badge[title] { cursor: help; }

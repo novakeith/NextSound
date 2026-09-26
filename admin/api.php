@@ -318,12 +318,32 @@ if ($action === 'set_comment_status') {
         die("Invalid status");
     }
 
-    $stmt = $db->prepare("UPDATE comments SET status = ? WHERE id = ?");
+    // triaging a comment means it's been reviewed, so it also leaves the notifications queue
+    $stmt = $db->prepare("UPDATE comments SET status = ?" . (NOTIFICATIONS_ENABLED ? ", is_read = 1" : "") . " WHERE id = ?");
     $stmt->execute([$status, $commentId]);
 
     http_response_code(200);
     echo "Success";
     exit;
+}
+
+// --- Notifications menu: mark one comment read (clicking through to it) or all of them ---
+if ($action === 'mark_notification_read' || $action === 'mark_all_notifications_read') {
+    if (!NOTIFICATIONS_ENABLED) jsonOut(200, ['status' => 'ignored', 'unread' => 0]);
+    if ($action === 'mark_notification_read') {
+        $db->prepare("UPDATE comments SET is_read = 1 WHERE id = ?")->execute([(int)($_POST['comment_id'] ?? 0)]);
+    } else {
+        $db->exec("UPDATE comments SET is_read = 1 WHERE is_read = 0");
+    }
+    jsonOut(200, ['status' => 'success', 'unread' => reviewQueueCount($db)]);
+}
+
+// --- Approve a held comment: it becomes visible to everyone, and it's been reviewed ---
+// (Denying is just deleting it - see delete_comment.)
+if ($action === 'approve_comment') {
+    if (!COMMENT_APPROVAL_ENABLED) jsonOut(200, ['status' => 'ignored', 'unread' => 0]);
+    $db->prepare("UPDATE comments SET is_approved = 1, is_read = 1 WHERE id = ?")->execute([(int)($_POST['comment_id'] ?? 0)]);
+    jsonOut(200, ['status' => 'success', 'unread' => reviewQueueCount($db)]);
 }
 
 // --- Admins can also straight up delete a comment, for example if something is inappropriate
@@ -332,6 +352,9 @@ if ($action === 'delete_comment') {
 
     $stmt = $db->prepare("DELETE FROM comments WHERE id = ?");
     $stmt->execute([$commentId]);
+
+    // the notifications menu (denying a held comment) wants the new queue size back
+    if ($wantsJson) jsonOut(200, ['status' => 'success', 'unread' => NOTIFICATIONS_ENABLED ? reviewQueueCount($db) : 0]);
 
     // Return success for the JS fetch
     http_response_code(200);

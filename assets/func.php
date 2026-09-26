@@ -104,6 +104,24 @@ function runDBmigration($schema, $db){
 			}
 		}
 
+		// Migrate from v4 to v5: read/unread for the admin's comment notifications
+		if ($schema < 5)
+		{
+			if (!columnExists($db, 'comments', 'is_read')) {
+				$db->exec("ALTER TABLE comments ADD COLUMN is_read INTEGER NOT NULL DEFAULT 0");
+				// comments from before this update count as already seen, so the menu doesn't open to a flood
+				$db->exec("UPDATE comments SET is_read = 1");
+			}
+		}
+
+		// Migrate from v5 to v6: comments can be held for approval (everything already posted counts as approved)
+		if ($schema < 6)
+		{
+			if (!columnExists($db, 'comments', 'is_approved')) {
+				$db->exec("ALTER TABLE comments ADD COLUMN is_approved INTEGER NOT NULL DEFAULT 1");
+			}
+		}
+
 		// record the new schema version - do this last in case previous statements fail
 		$stmt = $db->prepare("INSERT OR REPLACE INTO site_settings (setting_key, setting_value) VALUES ('db_schema', ?)");
 		$stmt->execute([(string)DB_SCHEMA_VERSION]);

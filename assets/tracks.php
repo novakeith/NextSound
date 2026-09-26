@@ -9,8 +9,12 @@ function getCurrentVersion($db, $projectId) {
 	return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
 }
 
+// Comments for one version. Visitors only get approved ones; the admin gets everything, with held ones flagged.
 function getVersionComments($db, $versionId) {
-	$stmt = $db->prepare("SELECT id, timestamp, author_name, text, status FROM comments WHERE version_id = ? ORDER BY timestamp ASC");
+	$approved = COMMENT_APPROVAL_ENABLED ? "is_approved" : "1";
+	$onlyApproved = (COMMENT_APPROVAL_ENABLED && !isAdmin()) ? " AND is_approved = 1" : "";
+	$stmt = $db->prepare("SELECT id, timestamp, author_name, text, status, $approved AS is_approved FROM comments
+						  WHERE version_id = ?$onlyApproved ORDER BY timestamp ASC");
 	$stmt->execute([$versionId]);
 	return array_map(fn($c) => [
 		'id' => (int)$c['id'],
@@ -18,6 +22,7 @@ function getVersionComments($db, $versionId) {
 		'author' => $c['author_name'] ?: 'Anonymous',
 		'text' => $c['text'],
 		'status' => $c['status'],
+		'held' => !$c['is_approved'],
 	], $stmt->fetchAll(PDO::FETCH_ASSOC));
 }
 
