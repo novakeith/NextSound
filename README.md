@@ -38,6 +38,7 @@ As of 9/24/26, you can:
 - A notifications menu (🔔) in the top bar collects new comments for review, with read/unread status and "mark all as read"
 - Optionally require approval before visitors' comments become visible - approve or deny (delete) them right from the notifications menu
 - Comments can be disabled site-wide. They will still appear for the admin though, so you can use this as a 'note to self' thing on tracks while still sharing the track with other people.
+- Private notes for each version of a song, only visible to the admin - handy to keep open next to your DAW (mix ideas, plugin settings, what to fix next)
 - Play counts for every track and version, always visible to you in the admin panel; you can choose to show them publicly too
 - Optional webhook (e.g. Discord) that posts a message when a comment is left, a track is uploaded, and/or a playlist is created - you pick which in Settings
 

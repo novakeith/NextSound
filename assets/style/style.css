@@ -686,3 +686,29 @@
 		.triage-btn.active.accepted { background: #1e4d2e; border-color: #27ae60; }
 		.triage-btn.active.rejected { background: #4d1e1e; border-color: #c0392b; }
 		.status-badge[title] { cursor: help; }
+
+		/* Private per-version notes (admin only) */
+		.pnotes { margin-top: 15px; border: 1px solid #3d3a55; background: #1c1b26; border-radius: 6px; }
+		.pnotes-head { display: flex; align-items: center; gap: 10px; padding: 10px 15px; flex-wrap: wrap; }
+		.pnotes-toggle { display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 0; cursor: pointer; font: inherit; }
+		.pnotes-arrow { color: #a59dff; font-size: 0.8rem; width: 0.8rem; display: inline-block; transition: transform 0.15s; }
+		.pnotes.open .pnotes-arrow { transform: rotate(90deg); }
+		.pnotes-label { font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.04em; color: #a59dff; }
+		.pnotes-hint, .pnotes-saved { font-size: 0.75rem; color: #6f6a90; }
+		.pnotes-saved { margin-left: auto; }
+		.pnotes-body { padding: 0 15px 12px; }
+		.pnotes:not(.open) .pnotes-body, .pnotes:not(.open) .pn-tabs, .pnotes:not(.open) .pnotes-saved, .pnotes.open .pnotes-hint { display: none; }
+		.pnotes textarea { width: 100%; min-height: 110px; margin: 0; background: #15141d; border: 1px solid #2e2c40; color: #ddd; border-radius: 4px; padding: 10px; font: inherit; font-size: 0.9rem; line-height: 1.5; resize: vertical; }
+		.pnotes textarea:focus { outline: none; border-color: #a59dff; }
+		.pnotes-old { white-space: pre-line; font-size: 0.85rem; line-height: 1.5; color: #8e8aa8; background: #17161f; border: 1px dashed #2e2c40; border-radius: 4px; padding: 10px; min-height: 60px; overflow-wrap: anywhere; }
+		.pnotes-old.empty { font-style: italic; color: #5d5977; }
+		.pn-tab-label { font-size: 0.75rem; color: #6f6a90; margin-bottom: 6px; }
+		.pn-tabs { display: flex; gap: 4px; align-items: center; position: relative; flex-wrap: wrap; }
+		.pn-tab { background: #15141d; border: 1px solid #2e2c40; color: #8e8aa8; border-radius: 4px; padding: 3px 10px; font-size: 0.75rem; cursor: pointer; white-space: nowrap; }
+		.pn-tab.on { border-color: #a59dff; color: #ddd; }
+		.pn-tabs .dot, .pn-older-menu .dot { color: #a59dff; }
+		.pn-older-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 5; display: flex; flex-direction: column; min-width: 110px; padding: 4px; background: #1c1b26; border: 1px solid #3d3a55; border-radius: 6px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5); }
+		.pn-older-menu button { background: none; border: none; color: #bbb; text-align: left; padding: 5px 10px; font-size: 0.8rem; cursor: pointer; border-radius: 4px; }
+		.pn-older-menu button:hover { background: #262436; }
+		.pnotes-edit { display: block; width: 50%; min-height: 60px; margin-top: 6px; background: #1c1b26; border-color: #3d3a55; font: inherit; font-size: 0.85rem; }
+		.notes-marker { margin-left: 6px; cursor: help; }

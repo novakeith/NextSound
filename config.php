@@ -21,7 +21,7 @@ define('ALLOWED_AUDIO_TYPES', [
 	'audio/ogg' => 'ogg',
 	'audio/flac' => 'flac', 'audio/x-flac' => 'flac',
 ]);
-define('DB_SCHEMA_VERSION', 6); // bump this when adding a migration to assets/func.php (and update schema.sql)
+define('DB_SCHEMA_VERSION', 7); // bump this when adding a migration to assets/func.php (and update schema.sql)
 
 // database connection / creation (if it doesnt exist)
 try {
@@ -54,6 +54,7 @@ try {
 	define('NOTIFICATIONS_ENABLED', (int)($settings['db_schema'] ?? 1) >= 5);
 	// holding comments for approval needs db schema v6
 	define('COMMENT_APPROVAL_ENABLED', (int)($settings['db_schema'] ?? 1) >= 6);
+	define('ADMIN_NOTES_ENABLED', (int)($settings['db_schema'] ?? 1) >= 7);
 } catch (Exception $e) {
     // Log any errors w/ database connection; nothing else on the page can work without the db, so stop here.
     error_log("DB Error: " . $e->getMessage());

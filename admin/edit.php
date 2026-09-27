@@ -61,6 +61,9 @@ $vs = $versions->fetchAll(PDO::FETCH_ASSOC);
 				<div style="flex-grow: 1;">
 					<label style="font-size: 0.6rem"><?= h($v['filename']) ?> | Original filename: <?= h($v['origfilename']) ?> | Version <?= $v['version_number'] ?><?= PLAY_COUNTS_ENABLED ? ' | ▶ ' . number_format($v['play_count']) . ' play' . ($v['play_count'] == 1 ? '' : 's') : '' ?> | changelog:</label>
 					<input type="text" name="versions[<?= $v['id'] ?>]" value="<?= htmlspecialchars($v['changelog']) ?>" style="width:50%;" placeholder="Describe what changed...">
+					<?php if (ADMIN_NOTES_ENABLED): ?>
+						<textarea name="admin_notes[<?= $v['id'] ?>]" class="pnotes-edit" placeholder="🔒 Private notes - only you can see these"><?= h($v['admin_notes']) ?></textarea>
+					<?php endif; ?>
 				</div>
 				<div style="padding: 1px;">
 					<button type="button" class="btn btn-sm download-toggle-btn" data-version-id="<?= $v['id'] ?>" data-current="<?= $v['allow_download'] ?>">

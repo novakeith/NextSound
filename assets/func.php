@@ -122,6 +122,14 @@ function runDBmigration($schema, $db){
 			}
 		}
 
+		// v6 -> v7: private per-version notes
+		if ($schema < 7)
+		{
+			if (!columnExists($db, 'versions', 'admin_notes')) {
+				$db->exec("ALTER TABLE versions ADD COLUMN admin_notes TEXT NOT NULL DEFAULT ''");
+			}
+		}
+
 		// record the new schema version - do this last in case previous statements fail
 		$stmt = $db->prepare("INSERT OR REPLACE INTO site_settings (setting_key, setting_value) VALUES ('db_schema', ?)");
 		$stmt->execute([(string)DB_SCHEMA_VERSION]);

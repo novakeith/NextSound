@@ -185,6 +185,12 @@ if ($action === 'update_project') {
                 $stmt->execute([$changelog, (int)$versionId, $projectId]);
             }
         }
+        if (ADMIN_NOTES_ENABLED && isset($_POST['admin_notes']) && is_array($_POST['admin_notes'])) {
+            $stmt = $db->prepare("UPDATE versions SET admin_notes = ? WHERE id = ? AND project_id = ?");
+            foreach ($_POST['admin_notes'] as $versionId => $notes) {
+                $stmt->execute([mb_substr((string)$notes, 0, 20000), (int)$versionId, $projectId]);
+            }
+        }
 
         $db->commit();
         header("Location: edit.php?id=$projectId&success=1");
@@ -360,6 +366,15 @@ if ($action === 'delete_comment') {
     http_response_code(200);
     echo "Deleted";
     exit;
+}
+
+// --- private notes autosave (track / playlist page)
+if ($action === 'save_admin_notes') {
+    if (!ADMIN_NOTES_ENABLED) jsonOut(409, ['status' => 'error', 'message' => 'Run the database update in Settings first.']);
+    $stmt = $db->prepare("UPDATE versions SET admin_notes = ? WHERE id = ?");
+    $stmt->execute([mb_substr((string)($_POST['notes'] ?? ''), 0, 20000), (int)($_POST['version_id'] ?? 0)]);
+    if (!$stmt->rowCount()) jsonOut(404, ['status' => 'error', 'message' => 'Version not found.']);
+    jsonOut(200, ['status' => 'success']);
 }
 
 // --- toggling downloads on the admin edit page... Per version!

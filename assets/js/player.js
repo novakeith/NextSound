@@ -51,6 +51,7 @@
 		lastTime = 0;
 		playRecorded = false;
 		renderInfo(track);
+		document.dispatchEvent(new CustomEvent('nextsound:track', { detail: track }));
 		renderComments(track);
 		renderTracklist();
 		resetCommentLock();

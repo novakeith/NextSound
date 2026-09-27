@@ -56,6 +56,12 @@ function buildTrack($db, $project, $version, $access, $withComments, $pinned = f
 		'comments' => $withComments ? getVersionComments($db, $version['id']) : [],
 	];
 	if ($withPlays) $track['plays'] = projectPlayCount($db, $project['id']);
+	// private notes for every version of the song - admin only
+	if (ADMIN_NOTES_ENABLED && isAdmin()) {
+		$stmt = $db->prepare("SELECT id, version_number, admin_notes FROM versions WHERE project_id = ? ORDER BY version_number DESC");
+		$stmt->execute([$project['id']]);
+		$track['privateNotes'] = array_map(fn($v) => ['versionId' => (int)$v['id'], 'versionNumber' => (int)$v['version_number'], 'notes' => $v['admin_notes']], $stmt->fetchAll(PDO::FETCH_ASSOC));
+	}
 	return $track;
 }
 

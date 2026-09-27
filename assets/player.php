@@ -23,6 +23,21 @@ $showComments = commentsVisible($settings);
 					<span style="color: #fff;" id="changelogText"></span>
 				</div>
 
+				<?php if (isAdmin() && ADMIN_NOTES_ENABLED): ?>
+				<!-- private per-version notes, admin only (filled in by private-notes.js) --!>
+				<div class="pnotes" id="privateNotes">
+					<div class="pnotes-head">
+						<button type="button" class="pnotes-toggle" id="pnToggle" aria-expanded="false">
+							<span class="pnotes-arrow">▶</span><span class="pnotes-label">🔒 Private notes</span>
+						</button>
+						<span class="pnotes-hint" id="pnHint"></span>
+						<div class="pn-tabs" id="pnTabs"></div>
+						<span class="pnotes-saved" id="pnSaved"></span>
+					</div>
+					<div class="pnotes-body" id="pnBody"></div>
+				</div>
+				<?php endif; ?>
+
 				<div id="waveform"></div>
 
 				<div class="controls">
@@ -92,4 +107,5 @@ $showComments = commentsVisible($settings);
 					'primaryColor' => $settings['primary_color'] ?? '#3498db',
 				], JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 			</script>
+			<?php if (isAdmin() && ADMIN_NOTES_ENABLED): ?><script src="<?= asset('/assets/js/private-notes.js') ?>"></script><?php endif; ?>
 			<script src="<?= asset('/assets/js/player.js') ?>"></script>
