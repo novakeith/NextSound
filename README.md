@@ -55,15 +55,28 @@ NextSound's public/private setting controls **what's listed on the home page**, 
 If you need something truly locked down, don't upload it here yet (see the roadmap below).
 
 ## What will it do eventually?
-I want to at some point add:
+Roughly in order - short term is what I'm working on next, the rest is further out and might change.
 
-- let users edit/delete their own comments
-- re-work the UI to be nicer looking
-  - For example, with a lot of tracks, the admin UI is going to be unwieldy. 
+**Short term**
+- show comments as markers on the waveform (hover to read, click to jump to that spot)
+- A/B between versions of a song without losing your place, so you can hear what actually changed
+- nicer link previews (title, artist, artwork) when you share a track or playlist in Discord, iMessage, etc.
+- keyboard shortcuts (space to play/pause, arrow keys to seek, C to comment)
+- remember a commenter's name so they don't have to type it in every time
+
+**Medium term**
+- search / filter on the dashboard - with a lot of tracks, the admin UI is going to get unwieldy
+- an embeddable player for blogs / websites
+- generate waveforms when a track is uploaded, so big WAV files start playing right away instead of downloading the whole thing first
+- UI clean-up in general, including a better playlist page layout and the nav bar on phones
+
+**Long term / maybe**
+- tie comment feedback to versions (ie. "incorporated in v3") so this doubles as a to-do list for a song
 - light mode / dark mode AND/OR allow admins to create custom themes from a dashboard (I have rudimentary color picking for some buttons right now)
 - allow admins to tag their projects / versions (ie. "sketch" / "mixing" / "mastering" / "completed")
 - truly private tracks (audio only streamed to people who have access, instead of being reachable by its file URL)
-- more security hardening; right now it assumes a single admin who sets a secure password ahead of time
+- smaller streaming copies of big files for listening on phones
+- multiple user accounts (admin / contributor / commenter), which would also let people edit or delete their own comments
 
 ## Installation
 1. create a docker-compose.yml file,  example given below. Change the port and the .env file if you want.
@@ -105,8 +118,10 @@ Set these in your `.env` file:
 | `ADMIN_PASSWORD` | **Required.** The admin login password. If it's missing, login is disabled entirely. Use something long. |
 | `SITE_TITLE` | The site name shown in the nav bar. Only used when the database is first created - after that, change it from the Settings page. |
 | `SITE_URL` | Your public URL (e.g. `https://nextsound.mysite.com`, no trailing slash), used in webhook links. Also only used on first run; change it later from Settings. |
+| `UPLOAD_MAX_FILESIZE` | Optional. Biggest single file you can upload, e.g. `512M` or `2G`. Defaults to 500M. |
+| `POST_MAX_SIZE` | Optional. Should be the same as or a bit bigger than `UPLOAD_MAX_FILESIZE` - if you leave it out it just matches it. |
 
-The maximum upload size is 500MB, set in `uploads.ini`.
+Heads up: if you're behind a reverse proxy, it probably has its own upload size limit too (Nginx Proxy Manager, Cloudflare, etc.), so raise that as well if big uploads fail.
 
 If you're running NextSound behind a reverse proxy with HTTPS, make sure the proxy sends the `X-Forwarded-Proto` header so the login cookie is marked secure.
 
