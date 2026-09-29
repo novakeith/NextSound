@@ -50,6 +50,8 @@
 		listened = 0;
 		lastTime = 0;
 		playRecorded = false;
+		markersReady = false;
+		renderMarkers();
 		renderInfo(track);
 		document.dispatchEvent(new CustomEvent('nextsound:track', { detail: track }));
 		renderComments(track);
@@ -74,7 +76,11 @@
 		loadTrack(current - 1, true);
 	}
 
-	wavesurfer.on('ready', () => { $('duration').textContent = formatTime(wavesurfer.getDuration()); });
+	wavesurfer.on('ready', () => {
+		$('duration').textContent = formatTime(wavesurfer.getDuration());
+		markersReady = true;
+		renderMarkers();
+	});
 	wavesurfer.on('timeupdate', (t) => {
 		$('currentTime').textContent = formatTime(t);
 		trackListening(t);
@@ -253,6 +259,7 @@
 				node.style.opacity = '0';
 				node.style.transform = 'translateX(20px)';
 				setTimeout(() => node.remove(), 300);
+				renderMarkers();
 			});
 		};
 
@@ -280,13 +287,105 @@
 			node.classList.remove('comment-held');
 			node.querySelectorAll('.held-tag, .approve-btn').forEach((x) => x.remove());
 		}
+		renderMarkers();
 	}
 	document.addEventListener('nextsound:comment-approved', (e) => markApproved(e.detail));
 	document.addEventListener('nextsound:comment-deleted', (e) => {
 		tracks.forEach((t) => { t.comments = t.comments.filter((c) => c.id !== e.detail); });
 		const node = document.getElementById('comment-container-' + e.detail);
 		if (node) node.remove();
+		renderMarkers();
 	});
+
+	// ---------- comment markers along the top of the waveform ----------
+	// Comments closer together on screen than MARKER_GAP px (measured from the first comment
+	// of a group) share one numbered dot, so dots never overlap however long the track or narrow the screen.
+
+	const MARKER_GAP = 16;
+	let markersReady = false; // the current track's duration is known
+	let tip = null;           // open tooltip: { group, pinned, box, dot }
+	let lastPointer = 'mouse';
+
+	function markerGroups(comments, duration, width) {
+		const gap = (MARKER_GAP / width) * duration;
+		const groups = [];
+		for (const c of [...comments].sort((a, b) => a.timestamp - b.timestamp)) {
+			const group = groups[groups.length - 1];
+			if (group && c.timestamp - group[0].timestamp < gap) group.push(c);
+			else groups.push([c]);
+		}
+		return groups;
+	}
+
+	function renderMarkers() {
+		const box = $('markers');
+		if (!box) return;
+		hideTip();
+		box.replaceChildren();
+		const duration = wavesurfer.getDuration();
+		const comments = tracks[current].comments.filter((c) => c.id);
+		if (!markersReady || !duration || !comments.length) return;
+
+		markerGroups(comments, duration, box.clientWidth || 800).forEach((group) => {
+			// placed at the group's first comment, so dots are always at least MARKER_GAP apart
+			const at = Math.min(group[0].timestamp, duration);
+			const many = group.length > 1;
+			const dot = el('button', {
+				type: 'button',
+				className: 'marker' + (many ? ' cluster' : '') + (!many && group[0].held ? ' held' : '') + (many && group.some((c) => c.held) ? ' has-held' : ''),
+			}, many ? String(group.length) : '');
+			dot.style.left = (at / duration * 100) + '%';
+			dot.setAttribute('aria-label', many ? `${group.length} comments around ${formatTime(group[0].timestamp)}` : `Comment at ${formatTime(group[0].timestamp)} by ${group[0].author}`);
+
+			dot.addEventListener('pointerdown', (e) => { lastPointer = e.pointerType; });
+			dot.addEventListener('mouseenter', () => showTip(dot, group, at / duration, false));
+			dot.addEventListener('mouseleave', () => { if (tip && !tip.pinned) hideTip(); });
+			dot.addEventListener('focus', () => showTip(dot, group, at / duration, false));
+			dot.addEventListener('blur', () => { if (tip && !tip.pinned) hideTip(); });
+			dot.addEventListener('click', (e) => {
+				e.stopPropagation();
+				const alreadyOpen = tip && tip.group === group && tip.pinned;
+				// single dot: jump (on touch, the first tap only shows the comment); group: open its list
+				if (!many && (lastPointer !== 'touch' || alreadyOpen)) { jumpToComment(group[0]); return; }
+				showTip(dot, group, at / duration, true);
+			});
+			box.append(dot);
+		});
+	}
+
+	function showTip(dot, group, fraction, pinned) {
+		hideTip();
+		dot.classList.add('active');
+		const rows = group.map((c) => {
+			const row = el('span', { className: 'row' },
+				el('span', { className: 't' }, formatTime(c.timestamp)), el('span', { className: 'who' }, c.author), ': ', c.text);
+			if (c.held) row.append(el('span', { className: 'held-note' }, '⏳ awaiting approval'));
+			row.addEventListener('click', (e) => { e.stopPropagation(); jumpToComment(c); });
+			return row;
+		});
+		const hint = group.length > 1 ? 'click a comment to jump there' : (lastPointer === 'touch' ? 'tap again to jump there' : 'click to jump there');
+		const box = el('div', { className: 'marker-tip' }, ...rows, el('span', { className: 'hint' }, hint));
+		box.style.left = Math.min(Math.max(fraction * 100, 12), 88) + '%';
+		$('markers').append(box);
+		tip = { group, pinned, box, dot };
+	}
+
+	function hideTip() {
+		if (!tip) return;
+		tip.box.remove();
+		tip.dot.classList.remove('active');
+		tip = null;
+	}
+	document.addEventListener('click', hideTip);
+
+	function jumpToComment(c) {
+		hideTip();
+		seekTo(c.timestamp);
+		flashComment(c.id);
+	}
+
+	let resizeTimer;
+	window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderMarkers, 150); });
 
 	// ---------- comment form ----------
 	// Clicking into the box locks both the time AND the track, so a comment typed while
@@ -366,21 +465,27 @@
 				const list = $('commentList');
 				if (track.comments.length === 1) list.replaceChildren();
 				list.prepend(renderComment(comment));
+				renderMarkers();
 			}
 			lock = null;
 			showLock();
 		};
 	}
 
-	// Arriving from the admin's notifications menu (#comment-123): scroll to that comment and flash it
-	function highlightLinkedComment() {
-		const match = location.hash.match(/^#comment-(\d+)$/);
-		const comment = match && document.getElementById('comment-container-' + match[1]);
+	// scroll to a comment in the list and flash it
+	function flashComment(id) {
+		const comment = document.getElementById('comment-container-' + id);
 		if (!comment) return;
 		comment.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		comment.classList.remove('comment-highlight');
 		void comment.offsetWidth; // restart the animation if it's the same comment again
 		comment.classList.add('comment-highlight');
+	}
+
+	// Arriving from the admin's notifications menu (#comment-123)
+	function highlightLinkedComment() {
+		const match = location.hash.match(/^#comment-(\d+)$/);
+		if (match) flashComment(match[1]);
 	}
 	window.addEventListener('hashchange', highlightLinkedComment);
 

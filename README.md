@@ -34,6 +34,7 @@ As of 9/24/26, you can:
 
 **Feedback**
 - Listeners can click on a waveform and leave a timestamped comment
+- Comments show up as dots along the top of the waveform - hover to read one, click to jump to that spot
 - Admins can mark comments as resolved/declined, or delete them
 - A notifications menu (🔔) in the top bar collects new comments for review, with read/unread status and "mark all as read"
 - Optionally require approval before visitors' comments become visible - approve or deny (delete) them right from the notifications menu
@@ -59,7 +60,6 @@ If you need something truly locked down, don't upload it here yet (see the roadm
 Roughly in order - short term is what I'm working on next, the rest is further out and might change.
 
 **Short term**
-- show comments as markers on the waveform (hover to read, click to jump to that spot)
 - A/B between versions of a song without losing your place, so you can hear what actually changed
 - nicer link previews (title, artist, artwork) when you share a track or playlist in Discord, iMessage, etc.
 - keyboard shortcuts (space to play/pause, arrow keys to seek, C to comment)

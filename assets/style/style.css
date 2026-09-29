@@ -712,3 +712,33 @@
 		.pn-older-menu button:hover { background: #262436; }
 		.pnotes-edit { display: block; width: 50%; min-height: 60px; margin-top: 6px; background: #1c1b26; border-color: #3d3a55; font: inherit; font-size: 0.85rem; }
 		.notes-marker { margin-left: 6px; cursor: help; }
+
+		/* Comment markers along the top of the waveform */
+		.wave-wrap { margin: 20px 0; }
+		.wave-wrap #waveform { margin: 0; }
+		.markers { position: relative; height: 20px; }
+		.marker {
+			position: absolute; top: 4px; transform: translateX(-50%);
+			width: 11px; height: 11px; padding: 0; border-radius: 50%;
+			background: var(--primary); border: 2px solid #1a1a1a; box-shadow: 0 0 0 1px var(--primary);
+			cursor: pointer; transition: transform 0.1s;
+		}
+		.marker:hover, .marker:focus-visible, .marker.active { transform: translateX(-50%) scale(1.35); outline: none; }
+		.marker.held { background: #BD8235; box-shadow: 0 0 0 1px #BD8235; }
+		.marker.cluster { top: 0; width: 20px; height: 20px; font-size: 0.65rem; font-weight: bold; color: #fff; line-height: 16px; text-align: center; }
+		.marker.cluster.has-held::after {
+			content: ''; position: absolute; top: -3px; right: -3px; width: 8px; height: 8px; border-radius: 50%;
+			background: #BD8235; border: 1px solid #1a1a1a;
+		}
+		.marker-tip {
+			position: absolute; top: 24px; z-index: 20; transform: translateX(-50%);
+			width: max-content; max-width: min(280px, 80vw); padding: 8px 10px;
+			background: #111; border: 1px solid #3a3a3a; border-radius: 6px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+			font-size: 0.8rem; color: #ddd; overflow-wrap: anywhere;
+		}
+		.marker-tip .row { display: block; padding: 3px 0; cursor: pointer; }
+		.marker-tip .row:hover { color: #fff; }
+		.marker-tip .t { color: var(--primary); font-weight: bold; margin-right: 6px; }
+		.marker-tip .who { font-weight: bold; }
+		.marker-tip .held-note { color: #BD8235; font-size: 0.7rem; margin-left: 4px; }
+		.marker-tip .hint { display: block; color: #666; font-size: 0.7rem; margin-top: 4px; }

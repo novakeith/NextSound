@@ -38,7 +38,10 @@ $showComments = commentsVisible($settings);
 				</div>
 				<?php endif; ?>
 
-				<div id="waveform"></div>
+				<div class="wave-wrap">
+					<div class="markers" id="markers"></div>
+					<div id="waveform"></div>
+				</div>
 
 				<div class="controls">
 					<?php if ($isPlaylist): ?><button class="btn btn-alt" id="prevBtn" title="Previous track">⏮</button><?php endif; ?>
