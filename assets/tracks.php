@@ -65,6 +65,30 @@ function buildTrack($db, $project, $version, $access, $withComments, $pinned = f
 	return $track;
 }
 
+// short one-line excerpt for previews
+function snippet($text, $length = 150) {
+	return mb_strimwidth(trim(preg_replace('/\s+/', ' ', (string)$text)), 0, $length, '…');
+}
+
+// link-preview tags (Discord, iMessage, Slack...) - only ever built from info that's public on the page
+function previewTags($settings, $title, $description, $path, $type, $private = false) {
+	$tags = [
+		['property', 'og:site_name', $settings['site_title'] ?? 'NextSound'],
+		['property', 'og:type', $type],
+		['property', 'og:title', $title],
+		['property', 'og:description', $description],
+		['name', 'description', $description],
+		['name', 'twitter:card', 'summary'],
+		['name', 'theme-color', $settings['primary_color'] ?? '#3498db'],
+	];
+	if (!empty($settings['site_url'])) $tags[] = ['property', 'og:url', $settings['site_url'] . $path];
+	$html = '';
+	foreach ($tags as [$attr, $key, $value]) $html .= "\t<meta $attr=\"$key\" content=\"" . h($value) . "\">\n";
+	// unlisted pages stay out of search engines even if a link ends up somewhere public
+	if ($private) $html .= "\t<meta name=\"robots\" content=\"noindex\">\n";
+	return $html;
+}
+
 function getPlaylistBySlug($db, $slug) {
 	$stmt = $db->prepare("SELECT * FROM playlists WHERE slug = ?");
 	$stmt->execute([$slug]);

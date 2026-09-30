@@ -56,6 +56,15 @@ if ($project) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= h($project ? $project['title'] : $settings['site_title']) ?></title>
+<?php
+	if ($project && $activeVersion) {
+		$about = $activeVersion['changelog'] ?: $project['notes'];
+		$path = '/share/' . $project['slug'] . ($vid ? '?vid=' . $vid : '');
+		echo previewTags($settings, $project['title'], $project['artistname'] . ' · Version ' . $activeVersion['version_number'] . ($about ? ' - ' . snippet($about) : ''), $path, 'music.song', !$project['is_public']);
+	} elseif (!$slug) {
+		echo previewTags($settings, $settings['site_title'] ?? 'NextSound', 'Listen and leave timestamped feedback.', '/', 'website');
+	}
+?>
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
 	<link rel="stylesheet" href="<?= asset('/assets/style/style.css') ?>">
     <!-- WaveSurfer 7.12.12, served from this site (pinned) rather than a CDN; license in assets/js/vendor/ -->

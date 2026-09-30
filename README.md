@@ -29,11 +29,11 @@ As of 9/24/26, you can:
 - Reorder tracks, swap pinned versions, and remove tracks from the admin panel
 
 **Sharing & visibility**
-- Every track and playlist gets its own share link (`/share/...` and `/playlist/...`)
+- Every track and playlist gets its own share link (`/share/...` and `/playlist/...`), with a proper preview (title, artist, notes) when you paste it into Discord, iMessage, etc.
 - Marking something 'public' lists it on the home page. 'Private' just means unlisted - anyone with the link can still listen. See [How privacy works](#how-privacy-works) below.
 
 **Feedback**
-- Listeners can click on a waveform and leave a timestamped comment
+- Listeners can click on a waveform and leave a timestamped comment (their name is remembered for next time)
 - Comments show up as dots along the top of the waveform - hover to read one, click to jump to that spot
 - Admins can mark comments as resolved/declined, or delete them
 - A notifications menu (🔔) in the top bar collects new comments for review, with read/unread status and "mark all as read"
@@ -61,9 +61,7 @@ Roughly in order - short term is what I'm working on next, the rest is further o
 
 **Short term**
 - A/B between versions of a song without losing your place, so you can hear what actually changed
-- nicer link previews (title, artist, artwork) when you share a track or playlist in Discord, iMessage, etc.
 - keyboard shortcuts (space to play/pause, arrow keys to seek, C to comment)
-- remember a commenter's name so they don't have to type it in every time
 
 **Medium term**
 - search / filter on the dashboard - with a lot of tracks, the admin UI is going to get unwieldy

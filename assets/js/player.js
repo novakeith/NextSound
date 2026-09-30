@@ -417,6 +417,13 @@
 		showNotice.timer = setTimeout(() => { notice.hidden = true; }, 8000);
 	}
 
+	// remember the commenter's name in this browser so they don't retype it every time
+	const NAME_KEY = 'nextsound.commenterName';
+	if (form) try { $('authorInput').value = localStorage.getItem(NAME_KEY) || ''; } catch (e) {}
+	function rememberName(name) {
+		try { name ? localStorage.setItem(NAME_KEY, name) : localStorage.removeItem(NAME_KEY); } catch (e) {}
+	}
+
 	if (form) {
 		textInput.onfocus = () => {
 			lock = { index: current, time: wavesurfer.getCurrentTime() };
@@ -449,6 +456,7 @@
 			}
 
 			textInput.value = '';
+			rememberName($('authorInput').value.trim());
 
 			// held for approval: tell the poster, and don't show it (it isn't public yet)
 			if (result.held) {

@@ -25,6 +25,12 @@ if ($playlist && $entries) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= h($playlist ? $playlist['title'] : $settings['site_title']) ?></title>
+<?php
+	if ($playlist) {
+		$n = count($entries);
+		echo previewTags($settings, $playlist['title'], "Playlist · $n track" . ($n === 1 ? '' : 's') . ($playlist['description'] ? ' - ' . snippet($playlist['description']) : ''), '/playlist/' . $playlist['slug'], 'music.playlist', !$playlist['is_public']);
+	}
+?>
 	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
 	<link rel="stylesheet" href="<?= asset('/assets/style/style.css') ?>">
     <!-- WaveSurfer 7.12.12, served from this site (pinned) rather than a CDN; license in assets/js/vendor/ -->
